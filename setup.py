@@ -33,8 +33,8 @@ class CMakeBuild(build_ext):
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={output_path}",
             f"-DPYTHON_EXECUTABLE={sys.executable}",
             f"-DCMAKE_BUILD_TYPE={build_type}",
-            "-DCMAKE_C_COMPILER=clang-6.0",
-            "-DCMAKE_CXX_COMPILER=clang++-6.0",
+            "-DCMAKE_C_COMPILER=/usr/bin/gcc",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/g++",
             "-DCMAKE_POSITION_INDEPENDENT_CODE=true",
             "-DTP_BUILD_PYTHON=true",
         ]
