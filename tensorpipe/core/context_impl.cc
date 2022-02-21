@@ -17,6 +17,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include <tensorpipe/common/callback.h>
 #include <tensorpipe/common/defs.h>
@@ -113,7 +114,7 @@ std::shared_ptr<Listener> ContextImpl::listen(
     const std::vector<std::string>& urls) {
   std::string listenerId =
       id_ + "[l" + std::to_string(listenerCounter_++) + "]";
-  TP_VLOG(1) << "Context " << id_ << " is opening listener " << listenerId;
+  std::cout << "Context " << id_ << " is opening listener " << listenerId << std::endl;
   return std::make_shared<Listener>(
       Listener::ConstructorToken(),
       shared_from_this(),
@@ -132,6 +133,7 @@ std::shared_ptr<Pipe> ContextImpl::connect(
     TP_VLOG(1) << "Pipe " << pipeId << " aliased as " << aliasPipeId;
     pipeId = std::move(aliasPipeId);
   }
+  // 创建一个pipe
   return std::make_shared<Pipe>(
       Pipe::ConstructorToken(),
       shared_from_this(),

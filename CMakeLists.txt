@@ -21,7 +21,10 @@ include(Sanitize)
 # Misc checks to cope with various compiler modes.
 include(MiscCheck)
 
-add_subdirectory(tensorpipe)
+add_subdirectory(./tensorpipe/)
+#add_subdirectory(tensorpipe/benchmark)
+add_subdirectory(tensorpipe/test)
+
 
 install(EXPORT TensorpipeTargets
         DESTINATION share/cmake/Tensorpipe

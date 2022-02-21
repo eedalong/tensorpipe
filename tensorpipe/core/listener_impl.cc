@@ -40,11 +40,13 @@ ListenerImpl::ListenerImpl(
     std::string transport;
     std::string address;
     std::tie(transport, address) = splitSchemeOfURL(url);
+    // Dalong：得到了transport的Context
     std::shared_ptr<transport::Context> context =
         context_->getTransport(transport);
     std::shared_ptr<transport::Listener> listener = context->listen(address);
     listener->setId(id_ + ".tr_" + transport);
     addresses_.emplace(transport, listener->addr());
+    // listeners_ 记录所有的transport建立的listener
     listeners_.emplace(transport, std::move(listener));
   }
 }
@@ -66,6 +68,8 @@ void ListenerImpl::initFromLoop() {
     return;
   }
 
+  // Dalong: context_ is a context
+  // enroll this Listener to keep it alive as long as context_ is alive
   context_->enroll(*this);
 
   for (const auto& listener : listeners_) {
@@ -89,6 +93,8 @@ void ListenerImpl::closeFromLoop() {
 //
 
 void ListenerImpl::accept(accept_callback_fn fn) {
+  // Dalong: Listener中的context是Transport的Context
+  // 
   context_->deferToLoop(
       [impl{this->shared_from_this()}, fn{std::move(fn)}]() mutable {
         impl->acceptFromLoop(std::move(fn));
@@ -123,6 +129,7 @@ void ListenerImpl::acceptFromLoop(accept_callback_fn fn) {
 const std::map<std::string, std::string>& ListenerImpl::addresses() const {
   // As this is an immutable member (after it has been initialized in
   // the constructor), we'll access it without deferring to the loop.
+  // transport: address
   return addresses_;
 }
 
@@ -268,15 +275,19 @@ void ListenerImpl::armListener(std::string transport) {
   auto transportListener = iter->second;
   TP_VLOG(3) << "Listener " << id_ << " is accepting connection on transport "
              << transport;
+  // Dalong: accept connection. Here begin to use implementation transport listener
   transportListener->accept(
       callbackWrapper_([transport](
+                           // callback的第一个参数就是当前的ListenerImpl实例，所有当前ListenerImpl的callbackWrapper_包裹起来的函数都是这样
                            ListenerImpl& impl,
+                           // 接收连接后创立的connection
                            std::shared_ptr<transport::Connection> connection) {
-        TP_VLOG(3) << "Listener " << impl.id_
-                   << " done accepting connection on transport " << transport;
+        std::cout << "Listener " << impl.id_
+                   << " done accepting connection on transport " << transport << std::endl;
         if (impl.error_) {
           return;
         }
+
         impl.onAccept(transport, std::move(connection));
         impl.armListener(transport);
       }));
@@ -312,6 +323,8 @@ void ListenerImpl::onConnectionHelloRead(
     // steps to happen "atomically" to make it impossible for an error to occur
     // in between.
     pipe->initFromLoop();
+
+    // 这里trigger的是用户层面注册的callback函数
     acceptCallback_.trigger(
         Error::kSuccess,
         std::make_shared<Pipe>(Pipe::ConstructorToken(), std::move(pipe)));

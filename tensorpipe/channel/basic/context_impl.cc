@@ -18,6 +18,7 @@ namespace channel {
 namespace basic {
 
 std::shared_ptr<ContextImpl> ContextImpl::create() {
+  // basic的模式下，deviceDescriptors之后CPU的信息
   std::unordered_map<Device, std::string> deviceDescriptors = {
       {Device{kCpuDeviceType, 0}, "any"}};
   return std::make_shared<ContextImpl>(std::move(deviceDescriptors));
@@ -26,12 +27,17 @@ std::shared_ptr<ContextImpl> ContextImpl::create() {
 ContextImpl::ContextImpl(
     std::unordered_map<Device, std::string> deviceDescriptors)
     : ContextImplBoilerplate<ContextImpl, ChannelImpl>(
-          std::move(deviceDescriptors)) {}
+          std::move(deviceDescriptors)) {
+          
+      std::cout<<"DalongLog:\tCreate Channel"<<std::endl;
+        
+    }
 
 std::shared_ptr<Channel> ContextImpl::createChannel(
     std::vector<std::shared_ptr<transport::Connection>> connections,
     Endpoint /* unused */) {
   TP_DCHECK_EQ(numConnectionsNeeded(), connections.size());
+  // 为啥只需要connections[0], 为啥其它的不需要了？
   return createChannelInternal(std::move(connections[0]));
 }
 

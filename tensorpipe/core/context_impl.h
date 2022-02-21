@@ -26,6 +26,7 @@ namespace tensorpipe {
 class ListenerImpl;
 class PipeImpl;
 
+// Context主要是一个DeferredExecutor
 class ContextImpl final : public virtual DeferredExecutor,
                           public std::enable_shared_from_this<ContextImpl> {
  public:

@@ -11,6 +11,7 @@
 #include <tensorpipe/transport/uv/connection_impl.h>
 #include <tensorpipe/transport/uv/listener_impl.h>
 #include <tensorpipe/transport/uv/uv.h>
+#include <iostream>
 
 namespace tensorpipe {
 namespace transport {
@@ -23,12 +24,14 @@ namespace {
 const std::string kDomainDescriptorPrefix{"uv:"};
 
 std::string generateDomainDescriptor() {
+  std::cout<<"DalongLog:\tCheck DomainDescriptor:\t" << kDomainDescriptorPrefix + "*" <<std::endl;
   return kDomainDescriptorPrefix + "*";
 }
 
 } // namespace
 
 std::shared_ptr<ContextImpl> ContextImpl::create() {
+  std::cout<<"DalongLog:\tIn ContextImpl Create Function Body" << std::endl;
   return std::make_shared<ContextImpl>();
 }
 
@@ -53,6 +56,7 @@ void ContextImpl::deferToLoop(std::function<void()> fn) {
 };
 
 std::unique_ptr<TCPHandle> ContextImpl::createHandle() {
+  
   return std::make_unique<TCPHandle>(loop_.ptr(), loop_);
 };
 

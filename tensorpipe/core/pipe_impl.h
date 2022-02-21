@@ -46,6 +46,8 @@ struct ReadOperation {
 
   // Fields used by the state machine
   uint64_t sequenceNumber{0};
+  std::string name{"Read"};
+
   State state{UNINITIALIZED};
 
   // Progress flags
@@ -76,6 +78,7 @@ struct WriteOperation {
 
   // Fields used by the state machine
   uint64_t sequenceNumber{0};
+  std::string name{"Write"};
   State state{UNINITIALIZED};
 
   // Progress flags
@@ -185,10 +188,14 @@ class PipeImpl final : public std::enable_shared_from_this<PipeImpl> {
       std::vector<std::shared_ptr<transport::Connection>>>
       channelReceivedConnections_;
 
+  // 和读写非常相关的两个OpsStateMachine
   OpsStateMachine<PipeImpl, ReadOperation> readOps_{
       *this,
       &PipeImpl::advanceReadOperation};
+
   using ReadOpIter = decltype(readOps_)::Iter;
+
+
   OpsStateMachine<PipeImpl, WriteOperation> writeOps_{
       *this,
       &PipeImpl::advanceWriteOperation};

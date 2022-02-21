@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <deque>
 #include <utility>
-
+#include <iostream>
 namespace tensorpipe {
 
 template <typename TSubject, typename TOp>
@@ -42,7 +42,14 @@ class OpsStateMachine {
 
   template <typename... TArgs>
   Iter emplaceBack(uint64_t sequenceNumber, TArgs&&... args) {
+    //for(auto arg : args){
+    //  std::cout<<"DalongLog:\tCheck arg:"<<arg<<std::endl;
+    //}
+
+
     ops_.emplace_back(std::forward<TArgs>(args)...);
+    std::cout<<"DalongLog:\tCheck sequenceNumber:\t"<<sequenceNumber<<".\tAnd check ops length:\t"<<ops_.size()<<std::endl;
+
     TOp& op = ops_.back();
     op.sequenceNumber = sequenceNumber;
     return Iter(&op);
@@ -62,6 +69,11 @@ class OpsStateMachine {
     }
   }
 
+  void debug(){
+    std::cout<< "DalongLog:\t Total ops:\t"<<ops_.size()<<std::endl;
+
+  }
+
   void advanceAllOperations() {
     // We cannot just iterate over the operations here as advanceOneOperation
     // could potentially erase some of them, thus invalidating references and/or
@@ -79,6 +91,7 @@ class OpsStateMachine {
     }
   }
 
+  // 做状态机的跳转，在当前状态是from，而且cond满足的情况下调用状态执行函数
   void attemptTransition(
       Iter opIter,
       typename TOp::State from,
@@ -89,6 +102,7 @@ class OpsStateMachine {
       for (const auto& action : actions) {
         (subject_.*action)(opIter);
       }
+      std::cout<<"DalongLog:\t Transisit From "<<from<<" To "<< to<<std::endl;
       opIter->state = to;
     }
   }

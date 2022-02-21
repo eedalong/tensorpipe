@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include <tensorpipe/transport/context.h>
 
@@ -32,6 +33,11 @@ class ContextOptions {
     name_ = std::move(name);
     return std::move(*this);
   }
+  ContextOptions(void){
+    std::cout<<"DalongLog:\tUsing default constructor function for ContextOptions"<<std::endl;
+  }
+
+
 
  private:
   std::string name_;

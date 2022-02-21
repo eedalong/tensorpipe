@@ -337,6 +337,7 @@ void ChannelImpl::waitForSendCudaEvent(SendOpIter opIter) {
 }
 
 void ChannelImpl::sendOverIb(SendOpIter opIter) {
+  // 进行切片发送
   TP_DCHECK(context_->inLoop());
 
   SendOperation& op = *opIter;

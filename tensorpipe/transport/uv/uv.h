@@ -26,6 +26,8 @@ namespace tensorpipe {
 namespace transport {
 namespace uv {
 
+// T: uv_loop_t
+// U:EventLoopDeferredExecutor
 template <typename T, typename U>
 class BaseHandle {
   static void uvCloseCb(uv_handle_t* handle) {

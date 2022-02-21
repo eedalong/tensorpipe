@@ -335,6 +335,8 @@ PYBIND11_MODULE(pytensorpipe, module) {
   pipe.def(
       "read_descriptor",
       [](std::shared_ptr<tensorpipe::Pipe> pipe, py::object callback) {
+        // readDescriptor的callback函数的传入参数是descriptor
+        // 最想要了解 tensorpipe::Descriptor的具体读取过程
         pipe->readDescriptor([callback{std::move(callback)}](
                                  const tensorpipe::Error& error,
                                  tensorpipe::Descriptor descriptor) mutable {
@@ -344,6 +346,7 @@ PYBIND11_MODULE(pytensorpipe, module) {
           }
           py::gil_scoped_acquire acquire;
           try {
+            // Dalong: 这个时候传进Python的Callback的参数实际上是一个tensorpipe::Message
             callback(prepareToAllocate(std::move(descriptor)));
           } catch (const py::error_already_set& err) {
             TP_LOG_ERROR() << "Callback raised exception: " << err.what();

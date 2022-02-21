@@ -18,8 +18,15 @@ namespace ibv {
 Reactor::Reactor(IbvLib ibvLib, IbvDeviceList deviceList)
     : ibvLib_(std::move(ibvLib)) {
   TP_DCHECK_GE(deviceList.size(), 1);
+  // 所有的都只用第一个device的话，会不会造成device的竞争
+
+  // open device and get device context
   ctx_ = createIbvContext(getIbvLib(), deviceList[0]);
+  // create protection domain
   pd_ = createIbvProtectionDomain(getIbvLib(), ctx_);
+  // ibv_create_cq creates a completion queue (CQ). A completion queue holds completion queue
+  //entries (CQE). Each Queue Pair (QP) has an associated send and receive CQ. A single CQ can be
+  //shared for sending and receiving as well as be shared across multiple QPs
   cq_ = createIbvCompletionQueue(
       getIbvLib(),
       ctx_,
@@ -31,8 +38,14 @@ Reactor::Reactor(IbvLib ibvLib, IbvDeviceList deviceList)
   IbvLib::srq_init_attr srqInitAttr;
   std::memset(&srqInitAttr, 0, sizeof(srqInitAttr));
   srqInitAttr.attr.max_wr = kNumPendingRecvReqs;
+  // creates a shared receive queue (SRQ).
   srq_ = createIbvSharedReceiveQueue(getIbvLib(), pd_, srqInitAttr);
 
+  // ibv_query_port retrieveibv_query_gid retrieves an entry in the port’s global identifier (GID) table. Each port is assigned
+  // at least one GID by the subnet manager (SM). The GID is a valid IPv6 address composed of the
+  // globally unique identifier (GUID) and a prefix assigned by the SM. GID[0] is unique and contains
+  // the port's GUID.s the various attributes associated with a port
+  // 
   addr_ = makeIbvAddress(getIbvLib(), ctx_, kPortNum, kGlobalIdentifierIndex);
 
   postRecvRequestsOnSRQ(kNumPendingRecvReqs);
@@ -48,6 +61,18 @@ void Reactor::postRecvRequestsOnSRQ(int num) {
     for (int i = 0; i < std::min(num, kNumPolledWorkCompletions) - 1; i++) {
       wrs[i].next = &wrs[i + 1];
     }
+    /*
+      ibv_post_srq_recv posts a list of work requests to the specified SRQ. It stops processing the
+      WRs from this list at the first failure (which can be detected immediately while requests are
+      being posted), and returns this failing WR through the bad_recv_wr parameter.
+      The buffers used by a WR can only be safely reused after WR the request is fully executed and a
+      work completion has been retrieved from the corresponding completion queue (CQ).
+      If a WR is being posted to a UD QP, the Global Routing Header (GRH) of the incoming message
+      will be placed in the first 40 bytes of the buffer(s) in the scatter list. If no GRH is present in the
+      incoming message, then the first 40 bytes will be undefined. This means that in all cases for UD
+      QPs, the actual data of the incoming message will start at an offset of 40 bytes into the buffer(s)
+      in the scatter list.
+    */
     int rv = getIbvLib().post_srq_recv(srq_.get(), wrs.data(), &badRecvWr);
     TP_THROW_SYSTEM_IF(rv != 0, errno);
     TP_THROW_ASSERT_IF(badRecvWr != nullptr);
@@ -161,7 +186,7 @@ bool Reactor::readyToClose() {
 void Reactor::registerQp(
     uint32_t qpn,
     std::shared_ptr<IbvEventHandler> eventHandler) {
-  queuePairEventHandler_.emplace(qpn, std::move(eventHandler));
+  postWrite.emplace(qpn, std::move(eventHandler));
 }
 
 void Reactor::unregisterQp(uint32_t qpn) {

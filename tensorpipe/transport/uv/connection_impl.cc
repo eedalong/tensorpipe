@@ -10,6 +10,7 @@
 
 #include <array>
 #include <deque>
+#include <iostream>
 
 #include <tensorpipe/common/callback.h>
 #include <tensorpipe/common/defs.h>
@@ -26,6 +27,7 @@ namespace tensorpipe {
 namespace transport {
 namespace uv {
 
+// server端接收connection请求时的Connection创建
 ConnectionImpl::ConnectionImpl(
     ConstructorToken token,
     std::shared_ptr<ContextImpl> context,
@@ -63,6 +65,7 @@ void ConnectionImpl::initImplFromLoop() {
       }
     });
   }
+  // 连接后创建的时候的函数绑定
   handle_->armCloseCallbackFromLoop(
       [this]() { this->closeCallbackFromLoop(); });
   handle_->armAllocCallbackFromLoop(
@@ -88,6 +91,7 @@ void ConnectionImpl::readImplFromLoop(
   readOperations_.emplace_back(ptr, length, std::move(fn));
 
   // Start reading if this is the first read operation.
+  // 是不是readOperations_ 的size永远都是1
   if (readOperations_.size() == 1) {
     handle_->readStartFromLoop();
   }
@@ -97,6 +101,8 @@ void ConnectionImpl::writeImplFromLoop(
     const void* ptr,
     size_t length,
     write_callback_fn fn) {
+  
+  // what is writeOperations
   writeOperations_.emplace_back(ptr, length, std::move(fn));
 
   auto& writeOperation = writeOperations_.back();
@@ -116,7 +122,10 @@ void ConnectionImpl::allocCallbackFromLoop(uv_buf_t* buf) {
   TP_THROW_ASSERT_IF(readOperations_.empty());
   TP_VLOG(9) << "Connection " << id_
              << " has incoming data for which it needs to provide a buffer";
+
+  // what is readOperations
   readOperations_.front().allocFromLoop(&buf->base, &buf->len);
+  std::cout<<"DalongLog:\tAllocate Length:\t"<<buf->len<<std::endl;
 }
 
 void ConnectionImpl::readCallbackFromLoop(

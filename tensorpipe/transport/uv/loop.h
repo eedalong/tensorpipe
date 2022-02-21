@@ -53,6 +53,7 @@ class Loop final : public EventLoopDeferredExecutor {
   void wakeupEventLoopToDeferFunction() override;
 
  private:
+ // loop_ is a uv_loop_t
   uv_loop_t loop_;
   uv_async_t async_;
   std::atomic<bool> closed_{false};

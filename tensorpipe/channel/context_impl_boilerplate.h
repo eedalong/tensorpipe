@@ -112,10 +112,13 @@ class ContextImplBoilerplate : public virtual DeferredExecutor,
   friend class tensorpipe::CallbackWrapper;
 };
 
+// 这里的创建是在各个backend下的context里面触发
 template <typename TCtx, typename TChan>
 ContextImplBoilerplate<TCtx, TChan>::ContextImplBoilerplate(
     std::unordered_map<Device, std::string> deviceDescriptors)
-    : deviceDescriptors_(std::move(deviceDescriptors)) {}
+    : deviceDescriptors_(std::move(deviceDescriptors)) {
+      std::cout<<"DalongLog:\tCreate ContextImplBoilerplate during channel creation"<<std::endl;
+    }
 
 template <typename TCtx, typename TChan>
 template <typename... Args>
@@ -142,6 +145,7 @@ void ContextImplBoilerplate<TCtx, TChan>::initFromLoop() {
 
   TP_DCHECK(!error_);
 
+  std::cout<<"DalongLog:\t Begin call initImplFromLoop, but we lost clue to track"<<std::endl;
   initImplFromLoop();
 }
 

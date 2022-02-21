@@ -16,6 +16,7 @@
 #include <tensorpipe/transport/uv/loop.h>
 #include <tensorpipe/transport/uv/sockaddr.h>
 #include <tensorpipe/transport/uv/uv.h>
+#include <iostream>
 
 namespace tensorpipe {
 namespace transport {
@@ -30,15 +31,23 @@ ListenerImpl::ListenerImpl(
           token,
           std::move(context),
           std::move(id)),
+      
+      // create handle这里是非常关键的一个步骤
       handle_(context_->createHandle()),
-      sockaddr_(Sockaddr::createInetSockAddr(addr)) {}
+      sockaddr_(Sockaddr::createInetSockAddr(addr)) {
+         std::cout<<"DalongLog:\tCheck internet addr:\t"<<sockaddr_.str()<<std::endl;
+      }
 
 void ListenerImpl::initImplFromLoop() {
   context_->enroll(*this);
 
+  std::cout<<"DalongLog:\tWhere sockets binds"<<std::endl;
+  std::cout<<"DalongLog:\tListener  "<< id_ << " is initializing in loop"<<std::endl;
+
   TP_VLOG(9) << "Listener " << id_ << " is initializing in loop";
 
   TP_THROW_ASSERT_IF(context_->closed());
+  // called uv_tcp_init
   handle_->initFromLoop();
   auto rv = handle_->bindFromLoop(sockaddr_);
   TP_THROW_UV_IF(rv < 0, rv);
@@ -59,10 +68,11 @@ std::string ListenerImpl::addrImplFromLoop() const {
 }
 
 void ListenerImpl::connectionCallbackFromLoop(int status) {
+  // 为什么没有连接的connection的fd信息这些？
   TP_DCHECK(context_->inLoop());
-  TP_VLOG(9) << "Listener " << id_
+  std::cout  << "DalongLog:\tListener " << id_
              << " has an incoming connection ready to be accepted ("
-             << formatUvError(status) << ")";
+             << formatUvError(status) << ")"<<std::endl;
 
   if (status != 0) {
     setError(TP_CREATE_ERROR(UVError, status));
@@ -73,6 +83,7 @@ void ListenerImpl::connectionCallbackFromLoop(int status) {
   TP_THROW_ASSERT_IF(context_->closed());
   connection->initFromLoop();
   handle_->acceptFromLoop(*connection);
+  // 这里的callback_.trigger的是core::Listener初始化的时候注册的accpet_callback_fn
   callback_.trigger(
       Error::kSuccess, createAndInitConnection(std::move(connection)));
 }

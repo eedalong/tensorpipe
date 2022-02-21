@@ -2,3 +2,11 @@
 .DS_Store
 /build/
 /cmake-build-debug/
+.vscode/
+dist/
+tensorpipe.egg-info/
+tensorpipe/benchmark/CMakeCache.txt
+tensorpipe/benchmark/Makefile
+tensorpipe/benchmark/cmake_install.cmake
+tensorpipe/benchmark/CMakeFiles/
+tensorpipe/test/python/__pycache__/

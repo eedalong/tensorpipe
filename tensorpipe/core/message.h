@@ -60,6 +60,7 @@ class Message final {
 
 // Descriptors consist of metadata required by the receiver to allocate memory
 // for an incoming message.
+// Dalong: Descriptor 包含了Message的metadata以及payloads、tensors的长度信息用于内存申请
 class Descriptor final {
  public:
   std::string metadata;

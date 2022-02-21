@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <iostream>
 
 #include <tensorpipe/common/callback.h>
 #include <tensorpipe/common/defs.h>
@@ -124,7 +125,9 @@ ListenerImplBoilerplate<TCtx, TList, TConn>::ListenerImplBoilerplate(
     ConstructorToken /* unused */,
     std::shared_ptr<TCtx> context,
     std::string id)
-    : context_(std::move(context)), id_(std::move(id)) {}
+    : context_(std::move(context)), id_(std::move(id)) {
+        std::cout<<"DalongLog:\tCreate Listener From Transport Context"<<std::endl;
+    }
 
 template <typename TCtx, typename TList, typename TConn>
 void ListenerImplBoilerplate<TCtx, TList, TConn>::init() {
@@ -199,9 +202,10 @@ template <typename TCtx, typename TList, typename TConn>
 template <typename... Args>
 std::shared_ptr<Connection> ListenerImplBoilerplate<TCtx, TList, TConn>::
     createAndInitConnection(Args&&... args) {
+  // args is TCPHandle
   TP_DCHECK(context_->inLoop());
   std::string connectionId = id_ + ".c" + std::to_string(connectionCounter_++);
-  TP_VLOG(7) << "Listener " << id_ << " is opening connection " << connectionId;
+  std::cout << "DalongLog:\tListener " << id_ << " is opening connection " << connectionId<<std::endl;
   auto connection = std::make_shared<TConn>(
       typename ConnectionImplBoilerplate<TCtx, TList, TConn>::
           ConstructorToken(),

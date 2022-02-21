@@ -49,6 +49,7 @@ class Listener final {
   // Entry points for user code
   //
 
+  // accept_callback_fn的参数为Error和Pipe
   using accept_callback_fn =
       std::function<void(const Error&, std::shared_ptr<Pipe>)>;
 

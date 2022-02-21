@@ -107,6 +107,11 @@ void ConnectionImpl::initImplFromLoop() {
       << "Couldn't allocate ringbuffer for connection inbox: " << error.what();
   inboxRb_ =
       RingBuffer<kNumInboxRingbufferRoles>(&inboxHeader_, inboxBuf_.ptr());
+  /*
+  ibv_reg_mr registers a memory region (MR), associates it with a protection domain (PD), and
+  assigns it local and remote keys (lkey, rkey). All VPI commands that use memory require the
+  memory to be registered via this command. The same physical memory may be mapped to different MRs even allowing different permissions or PDs to be assigned to the same memory, depending on user requirements
+  */
   inboxMr_ = createIbvMemoryRegion(
       context_->getReactor().getIbvLib(),
       context_->getReactor().getIbvPd(),
@@ -144,6 +149,7 @@ void ConnectionImpl::initImplFromLoop() {
         context_->getReactor().getIbvPd(),
         initAttr);
   }
+  
   transitionIbvQueuePairToInit(
       context_->getReactor().getIbvLib(),
       qp_,

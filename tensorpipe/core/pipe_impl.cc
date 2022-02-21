@@ -22,6 +22,10 @@
 #include <tensorpipe/core/listener.h>
 #include <tensorpipe/core/listener_impl.h>
 #include <tensorpipe/transport/connection.h>
+#include <chrono>
+#include <thread>
+using std::this_thread::sleep_for;
+
 
 namespace tensorpipe {
 
@@ -124,7 +128,10 @@ struct SelectedTransport {
 SelectedTransport selectTransport(
     const ContextImpl::TOrderedTransports& orderedTransports,
     const std::unordered_map<std::string, std::string>& remoteDomainDescriptors,
+    // transport: address
     const std::map<std::string, std::string>& addresses) {
+    
+  // server: choose one transport that can communicate with client
   for (const auto& transportContextIter : orderedTransports) {
     const std::string& transportName = std::get<0>(transportContextIter.second);
     const transport::Context& transportContext =
@@ -163,6 +170,7 @@ struct SelectedChannels {
       channelForDevicePair;
 };
 
+// choose all valid channels for all combinations of devices
 SelectedChannels selectChannels(
     const ContextImpl::TOrderedChannels& orderedChannels,
     const std::unordered_map<
@@ -222,7 +230,7 @@ SelectedChannels selectChannels(
 
 //
 // Initialization
-//
+// A pipe might be at client side or server side
 
 PipeImpl::PipeImpl(
     std::shared_ptr<ContextImpl> context,
@@ -235,6 +243,9 @@ PipeImpl::PipeImpl(
       remoteName_(std::move(remoteName)) {
   std::string address;
   std::tie(transport_, address) = splitSchemeOfURL(url);
+  std::cout<<"DalongLog:\tCreating Pipe, transport and address are\t"<<transport_<<"\t"<<address<<std::endl;
+  // Connect from transport
+  // 
   descriptorConnection_ =
       context_->getTransport(transport_)->connect(std::move(address));
   descriptorConnection_->setId(id_ + ".d.tr_" + transport_);
@@ -262,6 +273,7 @@ void PipeImpl::init() {
       [impl{this->shared_from_this()}]() { impl->initFromLoop(); });
 }
 
+// 初始化的过程中会主要和对方同步transport和channel的信息
 void PipeImpl::initFromLoop() {
   TP_DCHECK(context_->inLoop());
 
@@ -276,6 +288,7 @@ void PipeImpl::initFromLoop() {
 
   context_->enroll(*this);
 
+  // client需要发送自己的context，transport，channel信息
   if (state_ == CLIENT_ABOUT_TO_SEND_HELLO_AND_BROCHURE) {
     auto nopHolderOut = std::make_shared<NopHolder<Packet>>();
     Packet& nopPacketOut = nopHolderOut->getObject();
@@ -285,12 +298,15 @@ void PipeImpl::initFromLoop() {
     nopSpontaneousConnection.contextName = context_->getName();
     TP_VLOG(3) << "Pipe " << id_
                << " is writing nop object (spontaneous connection)";
+    
+    // 发送context信息
     descriptorConnection_->write(
         *nopHolderOut, callbackWrapper_([nopHolderOut](PipeImpl& impl) {
           TP_VLOG(3) << "Pipe " << impl.id_
                      << " done writing nop object (spontaneous connection)";
         }));
 
+    // 发送transport和channel的信息
     auto nopHolderOut2 = std::make_shared<NopHolder<Brochure>>();
     Brochure& nopBrochure = nopHolderOut2->getObject();
     for (const auto& transportContextIter : context_->getOrderedTransports()) {
@@ -322,6 +338,7 @@ void PipeImpl::initFromLoop() {
           TP_VLOG(3) << "Pipe " << impl.id_
                      << " done reading nop object (brochure answer)";
           if (!impl.error_) {
+            // client端建立pipe的过程
             impl.onReadWhileClientWaitingForBrochureAnswer(
                 nopHolderIn->getObject());
           }
@@ -335,6 +352,7 @@ void PipeImpl::initFromLoop() {
           TP_VLOG(3) << "Pipe " << impl.id_
                      << " done reading nop object (brochure)";
           if (!impl.error_) {
+            // server端建立pipe的过程
             impl.onReadWhileServerWaitingForBrochure(nopHolderIn->getObject());
           }
         }));
@@ -370,6 +388,7 @@ void PipeImpl::readDescriptor(read_descriptor_callback_fn fn) {
 void PipeImpl::readDescriptorFromLoop(read_descriptor_callback_fn fn) {
   TP_DCHECK(context_->inLoop());
 
+  // what is readOps_
   ReadOpIter opIter = readOps_.emplaceBack(nextMessageBeingRead_++);
   ReadOperation& op = *opIter;
 
@@ -388,6 +407,7 @@ void PipeImpl::readDescriptorFromLoop(read_descriptor_callback_fn fn) {
 
   op.readDescriptorCallback = std::move(fn);
 
+  // 这一步触发了advanceReadOperation的操作
   readOps_.advanceOperation(opIter);
 }
 
@@ -398,7 +418,7 @@ void PipeImpl::read(Allocation allocation, read_callback_fn fn) {
     impl->readFromLoop(std::move(allocation), std::move(fn));
   });
 }
-
+// 也就是readFromLoop一定是确保在expectReadCall后面调用的
 void PipeImpl::readFromLoop(Allocation allocation, read_callback_fn fn) {
   TP_DCHECK(context_->inLoop());
 
@@ -406,7 +426,9 @@ void PipeImpl::readFromLoop(Allocation allocation, read_callback_fn fn) {
   // to pass through the channel for "expected errors" (i.e., the callback).
   // This check fails when there is no message for which we are expecting an
   // allocation.
+  // Dalong： 确保nextMessageGettingAllocation_有value
   TP_THROW_ASSERT_IF(!nextMessageGettingAllocation_.has_value());
+  std::cout<<"DalongLog\t: We need to make sure nextMessageGettingAllocation_ has no value in readFromLoop"<<std::endl;
   ReadOpIter opIter = nextMessageGettingAllocation_.value();
   ReadOperation& op = *opIter;
   nextMessageGettingAllocation_.reset();
@@ -588,7 +610,8 @@ void PipeImpl::callReadDescriptorCallback(ReadOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
   ReadOperation& op = *opIter;
-
+  // 到这一步op的descriptor的信息已经是读好了的，我们需要找到真正读取的位置
+  ////std::cout<<"DalongLog:\tCheck op.descriptor's meta data:\t"<<op.descriptor.metadata<<std::endl;
   op.readDescriptorCallback(error_, op.descriptor);
   // Reset callback to release the resources it was holding.
   op.readDescriptorCallback = nullptr;
@@ -672,6 +695,10 @@ void PipeImpl::advanceReadOperation(
   TP_DCHECK(context_->inLoop());
 
   ReadOperation& op = *opIter;
+  std::cout<<"DalongLog:\tCheck prevOpState status before advanced:\t"<<prevOpState<<std::endl;
+
+  //std::cout<<"DalongLog:\tCheck op status before advanced:\t"<<op.state<<std::endl;
+
 
   // Needs to go after previous op to ensure ordering of callback invocations.
   readOps_.attemptTransition(
@@ -680,11 +707,16 @@ void PipeImpl::advanceReadOperation(
       /*to=*/ReadOperation::ASKING_FOR_ALLOCATION,
       /*cond=*/error_ && prevOpState >= ReadOperation::ASKING_FOR_ALLOCATION,
       /*actions=*/{&PipeImpl::callReadDescriptorCallback});
+  
+    //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
+
 
   // The ordering on the "wire" (the primary connection) is descriptor of op N,
   // then payloads of op N, then descriptor of op N+1. Hence this transition
   // must happen after the previous op scheduled its payload read, not just its
   // descriptor read.
+
+  // STEP 1
   readOps_.attemptTransition(
       opIter,
       /*from=*/ReadOperation::UNINITIALIZED,
@@ -692,7 +724,11 @@ void PipeImpl::advanceReadOperation(
       /*cond=*/!error_ && state_ == ESTABLISHED &&
           prevOpState >= ReadOperation::READING_PAYLOADS_AND_RECEIVING_TENSORS,
       /*actions=*/{&PipeImpl::readDescriptorOfMessage});
+  
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 
+
+  // STEP 2
   // Needs to go after previous op to ensure ordering of callback invocations.
   readOps_.attemptTransition(
       opIter,
@@ -701,9 +737,13 @@ void PipeImpl::advanceReadOperation(
       /*cond=*/op.doneReadingDescriptor &&
           prevOpState >= ReadOperation::ASKING_FOR_ALLOCATION,
       /*actions=*/{&PipeImpl::callReadDescriptorCallback});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
+
 
   // Needs to wait for previous op to have _received_ the read call, as we can
   // only have exactly one operation at a time for which we expect a read call.
+
+  // STEP 3
   readOps_.attemptTransition(
       opIter,
       /*from=*/ReadOperation::ASKING_FOR_ALLOCATION,
@@ -711,6 +751,7 @@ void PipeImpl::advanceReadOperation(
       /*cond=*/op.doneReadingDescriptor &&
           prevOpState >= ReadOperation::READING_PAYLOADS_AND_RECEIVING_TENSORS,
       /*actions=*/{&PipeImpl::expectReadCall});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 
   // Needs to go after previous op to ensure ordering of callback invocations.
   readOps_.attemptTransition(
@@ -720,11 +761,14 @@ void PipeImpl::advanceReadOperation(
       /*cond=*/error_ && op.doneGettingAllocation &&
           prevOpState >= ReadOperation::FINISHED,
       /*actions=*/{&PipeImpl::callReadCallback});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 
   // No need to order this with the previous operation, since all it needs is
   // to come after this own op's descriptor read.
   // This transition shortcuts writing the descriptor reply when all target
   // devices were provided by the sender.
+
+  // STEP 4
   readOps_.attemptTransition(
       opIter,
       /*from=*/ReadOperation::ASKING_FOR_ALLOCATION_FIRST_IN_LINE,
@@ -733,6 +777,7 @@ void PipeImpl::advanceReadOperation(
           !op.hasMissingTargetDevices,
       /*actions=*/
       {&PipeImpl::readPayloadsOfMessage, &PipeImpl::receiveTensorsOfMessage});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 
   // No need to order this with the previous operation, since all it needs is
   // to come after this own op's descriptor read.
@@ -746,8 +791,10 @@ void PipeImpl::advanceReadOperation(
       {&PipeImpl::readPayloadsOfMessage,
        &PipeImpl::writeDescriptorReplyOfMessage,
        &PipeImpl::receiveTensorsOfMessage});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 
   // Needs to go after previous op to ensure ordering of callback invocations.
+  // STEP 5
   readOps_.attemptTransition(
       opIter,
       /*from=*/ReadOperation::READING_PAYLOADS_AND_RECEIVING_TENSORS,
@@ -756,6 +803,7 @@ void PipeImpl::advanceReadOperation(
           op.numTensorsBeingReceived == 0 &&
           prevOpState >= ReadOperation::FINISHED,
       /*actions=*/{&PipeImpl::callReadCallback});
+  //std::cout<<"DalongLog:\tCheck op status after advanced:\t"<<op.state<<std::endl;
 }
 
 void PipeImpl::advanceWriteOperation(
@@ -763,7 +811,12 @@ void PipeImpl::advanceWriteOperation(
     WriteOperation::State prevOpState) {
   TP_DCHECK(context_->inLoop());
 
+  std::cout<<"DalongLog:\tCall advanceWriteOperation(), Check writeOps_ debug information"<<std::endl;
+  writeOps_.debug();
+
   WriteOperation& op = *opIter;
+  std::cout<<"DalongLog:\tCheck current op's state "<<op.state<<std::endl;
+
 
   // Needs to go after previous op to ensure ordering of callback invocations.
   writeOps_.attemptTransition(
@@ -772,7 +825,7 @@ void PipeImpl::advanceWriteOperation(
       /*to=*/WriteOperation::FINISHED,
       /*cond=*/error_ && prevOpState >= WriteOperation::FINISHED,
       /*actions=*/{&PipeImpl::callWriteCallback});
-
+  std::cout<<"DalongLog:\tFrom UNINITIALIZED TO FINISHED, cond = "<< (error_ && prevOpState >= WriteOperation::FINISHED)<<std::endl;
   // Needs to go after previous op to ensure predictable and consistent ordering
   // of write calls on the connection and send calls on the channels.
   // This transition shortcuts reading the target devices when they were all
@@ -788,6 +841,8 @@ void PipeImpl::advanceWriteOperation(
       {&PipeImpl::writeDescriptorOfMessage,
        &PipeImpl::writePayloadsOfMessage,
        &PipeImpl::sendTensorsOfMessage});
+  std::cout<<"DalongLog:\tFrom UNINITIALIZED TO WRITING_PAYLOADS_AND_SENDING_TENSORS, cond = "<< (!error_ && state_ == ESTABLISHED && !op.hasMissingTargetDevices && prevOpState >= WriteOperation::WRITING_PAYLOADS_AND_SENDING_TENSORS)<<std::endl;
+
 
   // Needs to go after previous op to ensure predictable and consistent ordering
   // of write calls on the descriptor connection and read calls on the
@@ -803,6 +858,8 @@ void PipeImpl::advanceWriteOperation(
       {&PipeImpl::writeDescriptorOfMessage,
        &PipeImpl::writePayloadsOfMessage,
        &PipeImpl::readDescriptorReplyOfMessage});
+  std::cout<<"DalongLog:\tFrom UNINITIALIZED TO WRITING_PAYLOADS_AND_READING_TARGET_DEVICES, cond = "<< (!error_ && state_ == ESTABLISHED && op.hasMissingTargetDevices && prevOpState >= WriteOperation::WRITING_PAYLOADS_AND_READING_TARGET_DEVICES)<<std::endl;
+
 
   // Needs to go after previous op to ensure ordering of callback invocations.
   writeOps_.attemptTransition(
@@ -813,6 +870,8 @@ void PipeImpl::advanceWriteOperation(
           op.doneReadingDescriptorReply &&
           prevOpState >= WriteOperation::FINISHED,
       /*actions=*/{&PipeImpl::callWriteCallback});
+  std::cout<<"DalongLog:\tFrom WRITING_PAYLOADS_AND_READING_TARGET_DEVICES TO FINISHED, cond = "<< (error_ && op.numPayloadsBeingWritten == 0 && op.doneReadingDescriptorReply && prevOpState >= WriteOperation::FINISHED)<<std::endl;
+
 
   // Needs to go after previous op to ensure predictable and consistent ordering
   // of send calls on channels.
@@ -823,6 +882,10 @@ void PipeImpl::advanceWriteOperation(
       /*cond=*/!error_ && op.doneReadingDescriptorReply &&
           prevOpState >= WriteOperation::WRITING_PAYLOADS_AND_SENDING_TENSORS,
       /*actions=*/{&PipeImpl::sendTensorsOfMessage});
+  
+  std::cout<<"DalongLog:\tFrom WRITING_PAYLOADS_AND_READING_TARGET_DEVICES TO WRITING_PAYLOADS_AND_SENDING_TENSORS, cond = "<< (!error_ && op.doneReadingDescriptorReply &&
+          prevOpState >= WriteOperation::WRITING_PAYLOADS_AND_SENDING_TENSORS)<<std::endl;
+
 
   // Needs to go after previous op to ensure ordering of callback invocations.
   writeOps_.attemptTransition(
@@ -832,6 +895,8 @@ void PipeImpl::advanceWriteOperation(
       /*cond=*/op.numPayloadsBeingWritten == 0 && op.numTensorsBeingSent == 0 &&
           prevOpState >= WriteOperation::FINISHED,
       /*actions=*/{&PipeImpl::callWriteCallback});
+  std::cout<<"DalongLog:\tFrom WRITING_PAYLOADS_AND_SENDING_TENSORS TO FINISHED, cond = "<< (op.numPayloadsBeingWritten == 0 && op.numTensorsBeingSent == 0 &&
+          prevOpState >= WriteOperation::FINISHED)<<std::endl;
 }
 
 void PipeImpl::readDescriptorOfMessage(ReadOpIter opIter) {
@@ -865,10 +930,12 @@ void PipeImpl::readDescriptorOfMessage(ReadOpIter opIter) {
 
 void PipeImpl::expectReadCall(ReadOpIter opIter) {
   TP_DCHECK(context_->inLoop());
-
+  //sleep_for(std::chrono::milliseconds(10000));
   ReadOperation& op = *opIter;
-
+  // 确保 nextMessageGettingAllocation_没有value
   TP_DCHECK(!nextMessageGettingAllocation_.has_value());
+  // 设置 nextMessageGettingAllocation_ 为opIter
+  std::cout<<"DalongLog\t:Set nextMessageGettingAllocation_'s value"<<std::endl;
   nextMessageGettingAllocation_ = opIter;
 }
 
@@ -942,6 +1009,7 @@ void PipeImpl::writePayloadsOfMessage(WriteOpIter opIter) {
   TP_VLOG(2) << "Pipe " << id_ << " is writing payloads of message #"
              << op.sequenceNumber;
 
+  std::cout<<"DalongLog:\tCheck payloads size:\t"<<op.message.payloads.size()<<std::endl;
   for (size_t payloadIdx = 0; payloadIdx < op.message.payloads.size();
        payloadIdx++) {
     Message::Payload& payload = op.message.payloads[payloadIdx];
@@ -985,6 +1053,7 @@ void PipeImpl::readDescriptorReplyOfMessage(WriteOpIter opIter) {
       }));
 }
 
+// server端与client协商建立pipe的过程
 void PipeImpl::onReadWhileServerWaitingForBrochure(
     const Brochure& nopBrochure) {
   TP_DCHECK(context_->inLoop());
@@ -1104,6 +1173,7 @@ void PipeImpl::onReadWhileClientWaitingForBrochureAnswer(
   std::string address = nopBrochureAnswer.address;
   std::shared_ptr<transport::Context> transportContext =
       context_->getTransport(transport);
+  // 首先判断transport能不能互相连接
   TP_DCHECK(transportContext->canCommunicateWithRemote(
       nopBrochureAnswer.transportDomainDescriptor))
       << "The two endpoints disagree on whether transport " << transport
@@ -1140,6 +1210,7 @@ void PipeImpl::onReadWhileClientWaitingForBrochureAnswer(
         nopBrochureAnswer.transportRegistrationIds.end());
     initConnection(*connection, transportRegistrationIter->second);
 
+    // 建立一个 descriptorReplyConnection_
     descriptorReplyConnection_ = std::move(connection);
   }
 

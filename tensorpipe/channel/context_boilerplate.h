@@ -65,7 +65,7 @@ class ContextBoilerplate : public Context {
 template <typename TCtx, typename TChan>
 template <typename... Args>
 ContextBoilerplate<TCtx, TChan>::ContextBoilerplate(Args&&... args)
-    : impl_(TCtx::create(std::forward<Args>(args)...)) {
+    : impl_(TCtx::create(std::forward<Args>(args)...)) {  // impl_ 的创建通过context进行创建
   static_assert(
       std::is_base_of<ChannelImplBoilerplate<TCtx, TChan>, TChan>::value, "");
   if (unlikely(!impl_)) {

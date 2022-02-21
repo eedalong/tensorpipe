@@ -14,6 +14,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <iostream>
 
 #include <tensorpipe/common/defs.h>
 #include <tensorpipe/transport/connection_boilerplate.h>
@@ -112,7 +113,11 @@ class ContextImplBoilerplate : public virtual DeferredExecutor,
 template <typename TCtx, typename TList, typename TConn>
 ContextImplBoilerplate<TCtx, TList, TConn>::ContextImplBoilerplate(
     std::string domainDescriptor)
-    : domainDescriptor_(std::move(domainDescriptor)) {}
+    : domainDescriptor_(std::move(domainDescriptor)) {
+      std::cout<<"DalongLog:\tCheck domainDescriptor_:\t"<<domainDescriptor_<<std::endl;
+      std::cout<<"DalongLog:\tFinish Transport Creation"<<std::endl;
+
+    }
 
 template <typename TCtx, typename TList, typename TConn>
 void ContextImplBoilerplate<TCtx, TList, TConn>::init() {
@@ -132,8 +137,10 @@ template <typename TCtx, typename TList, typename TConn>
 std::shared_ptr<Connection> ContextImplBoilerplate<TCtx, TList, TConn>::connect(
     std::string addr) {
   std::string connectionId = id_ + ".c" + std::to_string(connectionCounter_++);
-  TP_VLOG(7) << "Transport context " << id_ << " is opening connection "
-             << connectionId << " to address " << addr;
+  std::cout << "Transport context " << id_ << " is opening connection "
+             << connectionId << " to address " << addr << std::endl;
+  
+  // Transport中的connect即为创建一个ConnectionBoilerplate
   return std::make_shared<ConnectionBoilerplate<TCtx, TList, TConn>>(
       typename ConnectionImplBoilerplate<TCtx, TList, TConn>::
           ConstructorToken(),

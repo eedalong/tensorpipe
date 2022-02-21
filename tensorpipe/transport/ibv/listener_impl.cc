@@ -40,6 +40,7 @@ ListenerImpl::ListenerImpl(
 void ListenerImpl::initImplFromLoop() {
   context_->enroll(*this);
 
+  // Listener的初始化主要还是一个基于socket编程的TCP的初始化
   Error error;
   TP_DCHECK(!socket_.hasValue());
   std::tie(error, socket_) =

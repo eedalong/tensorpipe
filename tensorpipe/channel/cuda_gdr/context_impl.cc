@@ -166,6 +166,10 @@ size_t commonPrefixLength(const std::string& a, const std::string& b) {
   return maxLength;
 }
 
+
+/*
+Why it works?
+*/
 std::vector<std::string> matchGpusToIbvNics(
     IbvLib& ibvLib,
     IbvDeviceList& deviceList) {
@@ -669,6 +673,8 @@ std::shared_ptr<Channel> ContextImpl::createChannel(
     std::vector<std::shared_ptr<transport::Connection>> connections,
     Endpoint /* unused */) {
   TP_DCHECK_EQ(numConnectionsNeeded(), connections.size());
+
+  // how connections are build?
   return createChannelInternal(
       std::move(connections[0]), std::move(connections[1]));
 }
