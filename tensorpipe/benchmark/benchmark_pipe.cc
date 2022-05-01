@@ -109,7 +109,8 @@ static void serverPongPingNonBlock(
           const Error& error, Descriptor descriptor) {
         TP_THROW_ASSERT_IF(error) << error.what();
         Allocation allocation;
-        /*
+        
+        // no memory copy 
         TP_DCHECK_EQ(descriptor.metadata, data.expectedMetadata);
         if (data.payloadSize > 0) {
           TP_DCHECK_EQ(descriptor.payloads.size(), data.numPayloads);
@@ -146,7 +147,7 @@ static void serverPongPingNonBlock(
         } else {
           TP_DCHECK_EQ(descriptor.tensors.size(), 0);
         }
-        */
+        
 
         pipe->read(
             allocation,
@@ -161,7 +162,7 @@ static void serverPongPingNonBlock(
               TP_THROW_ASSERT_IF(error) << error.what();
 
               Message message;
-              /*
+              
               if (data.payloadSize > 0) {
                 TP_DCHECK_EQ(allocation.payloads.size(), data.numPayloads);
                 message.payloads.resize(data.numPayloads);
@@ -191,6 +192,8 @@ static void serverPongPingNonBlock(
                   TP_DCHECK_EQ(
                       descriptor.tensors[tensorIdx].length, data.tensorSize);
                   if (data.tensorType == TensorType::kCpu) {
+                    // dont cmp memory
+                    /*
                     TP_DCHECK_EQ(
                         memcmp(
                             allocation.tensors[tensorIdx]
@@ -199,6 +202,8 @@ static void serverPongPingNonBlock(
                             data.expectedCpuTensor[tensorIdx].get(),
                             descriptor.tensors[tensorIdx].length),
                         0);
+                    */
+
                   } else {
                     TP_THROW_ASSERT() << "Unknown tensor type";
                   }
@@ -212,7 +217,7 @@ static void serverPongPingNonBlock(
               } else {
                 TP_DCHECK_EQ(allocation.tensors.size(), 0);
               }
-              */
+              
 
               pipe->write(
                   std::move(message),
@@ -414,9 +419,7 @@ static void clientPingPongNonBlock(
                 }
 
                 TP_THROW_ASSERT_IF(error) << error.what();
-                
-                // we dont do memory copy
-                /*
+                                
                 if (data.payloadSize > 0) {
                   TP_DCHECK_EQ(allocation.payloads.size(), data.numPayloads);
                   for (size_t payloadIdx = 0; payloadIdx < data.numPayloads;
@@ -436,6 +439,8 @@ static void clientPingPongNonBlock(
                   for (size_t tensorIdx = 0; tensorIdx < data.numTensors;
                        tensorIdx++) {
                     if (data.tensorType == TensorType::kCpu) {
+                      // no memory compare
+                      /*
                       TP_DCHECK_EQ(
                           memcmp(
                               allocation.tensors[tensorIdx]
@@ -444,6 +449,7 @@ static void clientPingPongNonBlock(
                               data.expectedCpuTensor[tensorIdx].get(),
                               descriptor.tensors[tensorIdx].length),
                           0);
+                      */    
                     }  else {
                       TP_THROW_ASSERT() << "Unknown tensor type";
                     }
@@ -451,7 +457,7 @@ static void clientPingPongNonBlock(
                 } else {
                   TP_DCHECK_EQ(allocation.tensors.size(), 0);
                 }
-                */
+                
                 if (numWarmUps > 0) {
                   numWarmUps -= 1;
                 } else {
@@ -535,7 +541,7 @@ int main(int argc, char** argv) {
   x.numTensors = 1;
   // tensorSize = 128MB
   x.tensorSize = 1024 * 1024 * 128 ;
-  x.numRoundTrips = 1;
+
   
   std::cout << "mode = " << x.mode << "\n";
   std::cout << "transport = " << x.transport << "\n";
@@ -545,7 +551,7 @@ int main(int argc, char** argv) {
   std::cout << "num_payloads = " << x.numPayloads << "\n";
   std::cout << "payload_size = " << x.payloadSize << "\n";
   std::cout << "num_tensors = " << x.numTensors << "\n";
-  std::cout << "tensor_size = " << x.tensorSize << "\n";
+  std::cout << "tensor_size = " << x.tensorSize / 1024 / 1024  << "MB \n";
   std::cout << "tensor_type = "
             << (x.tensorType == TensorType::kCpu ? "cpu" : "cuda") << "\n";
   std::cout << "metadata_size = " << x.metadataSize << "\n";
