@@ -109,6 +109,7 @@ static void serverPongPingNonBlock(
           const Error& error, Descriptor descriptor) {
         TP_THROW_ASSERT_IF(error) << error.what();
         Allocation allocation;
+        /*
         TP_DCHECK_EQ(descriptor.metadata, data.expectedMetadata);
         if (data.payloadSize > 0) {
           TP_DCHECK_EQ(descriptor.payloads.size(), data.numPayloads);
@@ -145,6 +146,7 @@ static void serverPongPingNonBlock(
         } else {
           TP_DCHECK_EQ(descriptor.tensors.size(), 0);
         }
+        */
 
         pipe->read(
             allocation,
@@ -159,6 +161,7 @@ static void serverPongPingNonBlock(
               TP_THROW_ASSERT_IF(error) << error.what();
 
               Message message;
+              /*
               if (data.payloadSize > 0) {
                 TP_DCHECK_EQ(allocation.payloads.size(), data.numPayloads);
                 message.payloads.resize(data.numPayloads);
@@ -209,6 +212,7 @@ static void serverPongPingNonBlock(
               } else {
                 TP_DCHECK_EQ(allocation.tensors.size(), 0);
               }
+              */
 
               pipe->write(
                   std::move(message),
@@ -408,7 +412,11 @@ static void clientPingPongNonBlock(
                 if (numWarmUps == 0) {
                   measurements.cpu.markStop();
                 }
+
                 TP_THROW_ASSERT_IF(error) << error.what();
+                
+                // we dont do memory copy
+                /*
                 if (data.payloadSize > 0) {
                   TP_DCHECK_EQ(allocation.payloads.size(), data.numPayloads);
                   for (size_t payloadIdx = 0; payloadIdx < data.numPayloads;
@@ -443,6 +451,7 @@ static void clientPingPongNonBlock(
                 } else {
                   TP_DCHECK_EQ(allocation.tensors.size(), 0);
                 }
+                */
                 if (numWarmUps > 0) {
                   numWarmUps -= 1;
                 } else {
