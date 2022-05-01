@@ -219,6 +219,7 @@ static void serverPongPingNonBlock(
               }
               
 
+              /*
               pipe->write(
                   std::move(message),
                   [pipe,
@@ -228,23 +229,24 @@ static void serverPongPingNonBlock(
                    &data,
                    &measurements](const Error& error) {
                     TP_THROW_ASSERT_IF(error) << error.what();
-                    if (numWarmUps > 0) {
-                      numWarmUps -= 1;
-                    } else {
-                      numRoundTrips -= 1;
-                    }
-                    if (numRoundTrips > 0) {
-                      serverPongPingNonBlock(
-                          pipe,
-                          numWarmUps,
-                          numRoundTrips,
-                          doneProm,
-                          data,
-                          measurements);
-                    } else {
-                      doneProm.set_value();
-                    }
-                  });
+              */      
+                if (numWarmUps > 0) {
+                  numWarmUps -= 1;
+                } else {
+                  numRoundTrips -= 1;
+                }
+                if (numRoundTrips > 0) {
+                  serverPongPingNonBlock(
+                      pipe,
+                      numWarmUps,
+                      numRoundTrips,
+                      doneProm,
+                      data,
+                      measurements);
+                } else {
+                  doneProm.set_value();
+                }
+          //        });
             });
       });
 }
@@ -355,6 +357,8 @@ static void clientPingPongNonBlock(
       std::move(message),
       [pipe, &numWarmUps, &numRoundTrips, &doneProm, &data, &measurements](
           const Error& error) {
+        
+        /*
         TP_THROW_ASSERT_IF(error) << error.what();
         pipe->readDescriptor([pipe,
                               &numWarmUps,
@@ -440,7 +444,7 @@ static void clientPingPongNonBlock(
                        tensorIdx++) {
                     if (data.tensorType == TensorType::kCpu) {
                       // no memory compare
-                      /*
+                      
                       TP_DCHECK_EQ(
                           memcmp(
                               allocation.tensors[tensorIdx]
@@ -449,7 +453,7 @@ static void clientPingPongNonBlock(
                               data.expectedCpuTensor[tensorIdx].get(),
                               descriptor.tensors[tensorIdx].length),
                           0);
-                      */    
+                       
                     }  else {
                       TP_THROW_ASSERT() << "Unknown tensor type";
                     }
@@ -457,26 +461,30 @@ static void clientPingPongNonBlock(
                 } else {
                   TP_DCHECK_EQ(allocation.tensors.size(), 0);
                 }
-                
-                if (numWarmUps > 0) {
-                  numWarmUps -= 1;
-                } else {
-                  numRoundTrips -= 1;
-                }
-                if (numRoundTrips > 0) {
-                  clientPingPongNonBlock(
-                      pipe,
-                      numWarmUps,
-                      numRoundTrips,
-                      doneProm,
-                      data,
-                      measurements);
-                } else {
-                  printMultiDeviceMeasurements(measurements, data.payloadSize);
-                  doneProm.set_value();
-                }
-              });
-        });
+                 });
+                */
+              if (numWarmUps == 0) {
+                  measurements.cpu.markStop();
+                  //std::cout<<"measurements size = " << measurements.cpu.size()<<std::endl;
+              }
+              if (numWarmUps > 0) {
+                numWarmUps -= 1;
+              } else {
+                numRoundTrips -= 1;
+              }
+              if (numRoundTrips > 0) {
+                clientPingPongNonBlock(
+                    pipe,
+                    numWarmUps,
+                    numRoundTrips,
+                    doneProm,
+                    data,
+                    measurements);
+              } else {
+                printMultiDeviceMeasurements(measurements, data.payloadSize);
+                doneProm.set_value();
+              }
+              
       });
 }
 
