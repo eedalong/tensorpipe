@@ -7,6 +7,10 @@
 # TP_SRCS is the list of source files that we need to build libtensorpipe.
 set(TP_SRCS)
 
+set(TP_BUILD_TESTING)
+
+set(TP_ENABLE_IBV)
+
 # TP_PUBLIC_HDRS is the list of public header files that we need to install.
 set(TP_PUBLIC_HDRS)
 
@@ -145,7 +149,7 @@ endif()
 
 tp_conditional_backend(
   TP_ENABLE_IBV "Enable InfiniBand transport" "LINUX")
-if(TP_ENABLE_IBV)
+#if(TP_ENABLE_IBV)
   list(APPEND TP_SRCS
     common/epoll_loop.cc
     common/ibv.cc
@@ -162,7 +166,7 @@ if(TP_ENABLE_IBV)
     transport/ibv/factory.h
     transport/ibv/utility.h)
   set(TENSORPIPE_HAS_IBV_TRANSPORT 1)
-endif()
+#endif()
 
 
 ## MAC OS specific library deps
@@ -331,9 +335,9 @@ endif()
 
 ## Benchmarks
 
-if (TP_BUILD_BENCHMARK)
+#if (TP_BUILD_BENCHMARK)
   add_subdirectory(benchmark)
-endif()
+#endif()
 
 
 ## Misc tools
@@ -345,6 +349,6 @@ endif()
 
 ## Tests
 
-if(TP_BUILD_TESTING)
+#if(TP_BUILD_TESTING)
   add_subdirectory(test)
-endif()
+#endif()

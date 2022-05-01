@@ -7,6 +7,7 @@
 
 import threading
 import unittest
+import torch
 
 import pytensorpipe as tp
 
@@ -14,26 +15,27 @@ import pytensorpipe as tp
 class TestTensorpipe(unittest.TestCase):
     def test_read_write(self):
         context = tp.Context()
-        context.register_transport(0, "tcp", tp.create_uv_transport())
-        create_shm_transport = getattr(tp, "create_shm_transport", None)
-        if create_shm_transport is not None:
-            context.register_transport(-1, "shm", create_shm_transport())
+        #context.register_transport(0, "tcp", tp.create_uv_transport())
+        context.register_transport(0, "ibv", tp.create_ibv_transport())
+        #create_shm_transport = getattr(tp, "create_shm_transport", None)
+        #if create_shm_transport is not None:
+        #    context.register_transport(-1, "shm", create_shm_transport())
         context.register_channel(0, "basic", tp.create_basic_channel())
-        create_cma_channel = getattr(tp, "create_cma_channel", None)
-        if create_cma_channel is not None:
-            context.register_channel(-1, "cma", create_cma_channel())
+        #create_cma_channel = getattr(tp, "create_cma_channel", None)
+        #if create_cma_channel is not None:
+        #    context.register_channel(-1, "cma", create_cma_channel())
 
         # We must keep a reference to it, or it will be destroyed early.
         server_pipe = None
 
-        listener: tp.Listener = context.listen(["tcp://127.0.0.1"])
+        listener: tp.Listener = context.listen(["ibv://127.0.0.1:3355"])
 
         write_completed = threading.Event()
 
         def on_connection(pipe: tp.Pipe) -> None:
             global server_pipe
-            payload = tp.OutgoingPayload(b"Hello ", b"a greeting")
-            tensor = tp.OutgoingTensor(b"World!", b"a place")
+            payload = tp.OutgoingPayload(b"Hello")
+            tensor = tp.OutgoingTensor(torch.zeros(100000,))
             message = tp.OutgoingMessage(b"metadata", [payload], [tensor])
             pipe.write(message, on_write)
             server_pipe = pipe
@@ -43,7 +45,7 @@ class TestTensorpipe(unittest.TestCase):
 
         listener.listen(on_connection)
 
-        client_pipe: tp.Pipe = context.connect(listener.get_url("tcp"))
+        client_pipe: tp.Pipe = context.connect("ibv://127.0.0.1:3355")
 
         received_payloads = None
         received_tensors = None

@@ -12,6 +12,8 @@
 #include <nop/serializer.h>
 #include <nop/structure.h>
 
+#include <iostream>
+
 using namespace tensorpipe;
 using namespace tensorpipe::transport;
 
@@ -31,6 +33,8 @@ TEST_P(IbvTransportTest, Chunking) {
   const int kMsgSize = 5 * kBufferSize;
   std::string srcBuf(kMsgSize, 0x42);
   auto dstBuf = std::make_unique<char[]>(kMsgSize);
+
+  printf("Tesing IBV Connection Transfer");
 
   testConnection(
       [&](std::shared_ptr<Connection> conn) {

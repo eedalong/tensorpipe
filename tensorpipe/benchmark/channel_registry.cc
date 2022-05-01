@@ -9,7 +9,7 @@
 #include <tensorpipe/benchmark/channel_registry.h>
 
 #include <tensorpipe/tensorpipe.h>
-#include <tensorpipe/tensorpipe_cuda.h>
+//#include <tensorpipe/tensorpipe_cuda.h>
 
 TP_DEFINE_SHARED_REGISTRY(
     TensorpipeChannelRegistry,
@@ -51,18 +51,19 @@ TP_REGISTER_CREATOR(TensorpipeChannelRegistry, xth, makeXthChannel);
 
 // CUDA XTH
 
-std::shared_ptr<tensorpipe::channel::Context> makeCudaXthChannel() {
-  return tensorpipe::channel::cuda_xth::create();
-}
+//std::shared_ptr<tensorpipe::channel::Context> makeCudaXthChannel() {
+//  return tensorpipe::channel::cuda_xth::create();
+//}
 
-TP_REGISTER_CREATOR(TensorpipeChannelRegistry, cuda_xth, makeCudaXthChannel);
+//TP_REGISTER_CREATOR(TensorpipeChannelRegistry, cuda_xth, makeCudaXthChannel);
 
 // CUDA BASIC
-
+/*
 std::shared_ptr<tensorpipe::channel::Context> makeCudaBasicChannel() {
   return tensorpipe::channel::cuda_basic::create(
       tensorpipe::channel::basic::create());
 }
+
 
 TP_REGISTER_CREATOR(
     TensorpipeChannelRegistry,
@@ -89,6 +90,7 @@ std::shared_ptr<tensorpipe::channel::Context> makeCudaGdrChannel() {
 TP_REGISTER_CREATOR(TensorpipeChannelRegistry, cuda_gdr, makeCudaGdrChannel);
 #endif // TENSORPIPE_HAS_CUDA_GDR_CHANNEL
 
+*/
 void validateChannelContext(
     std::shared_ptr<tensorpipe::channel::Context> context) {
   if (!context) {
@@ -101,4 +103,6 @@ void validateChannelContext(
     std::cout << "\n";
     exit(EXIT_FAILURE);
   }
+
 }
+

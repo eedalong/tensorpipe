@@ -16,13 +16,13 @@ TP_DEFINE_SHARED_REGISTRY(
 
 // IBV
 
-#if TENSORPIPE_HAS_IBV_TRANSPORT
+//#if TENSORPIPE_HAS_IBV_TRANSPORT
 std::shared_ptr<tensorpipe::transport::Context> makeIbvContext() {
   return tensorpipe::transport::ibv::create();
 }
 
 TP_REGISTER_CREATOR(TensorpipeTransportRegistry, ibv, makeIbvContext);
-#endif // TENSORPIPE_HAS_IBV_TRANSPORT
+//#endif // TENSORPIPE_HAS_IBV_TRANSPORT
 
 // SHM
 

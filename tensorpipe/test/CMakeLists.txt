@@ -5,7 +5,9 @@
 # LICENSE file in the root directory of this source tree.
 
 # List of source files that we need to build tensorpipe_test executable.
-set(TP_TEST_SRCS)
+#set(TP_TEST_SRCS)
+
+set(TP_ENABLE_IBV)
 
 # TP_TEST_LINK_LIBRARIES is list of dependent libraries to be linked
 set(TP_TEST_LINK_LIBRARIES)

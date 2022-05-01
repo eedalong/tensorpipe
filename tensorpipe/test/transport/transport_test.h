@@ -18,6 +18,8 @@
 #include <tensorpipe/transport/context.h>
 #include <tensorpipe/transport/listener.h>
 
+#include <iostream>
+
 class TransportTestHelper {
  public:
   std::shared_ptr<tensorpipe::transport::Context> getContext(
@@ -61,6 +63,8 @@ class TransportTest : public ::testing::TestWithParam<TransportTestHelper*> {
           auto ctx = GetParam()->getContext();
           ctx->setId("server");
           auto addr = GetParam()->defaultAddr();
+          std::cout<<"Default Address "<< addr << std::endl;
+
           auto listener = ctx->listen(addr);
           std::promise<std::shared_ptr<Connection>> connectionProm;
           listener->accept([&](const tensorpipe::Error& error,

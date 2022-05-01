@@ -420,6 +420,8 @@ PYBIND11_MODULE(pytensorpipe, module) {
 
   module.def("create_uv_transport", &tensorpipe::transport::uv::create);
 
+  module.def("create_ibv_transport", &tensorpipe::transport::ibv::create);
+
 #if TENSORPIPE_HAS_SHM_TRANSPORT
   module.def("create_shm_transport", &tensorpipe::transport::shm::create);
 #endif // TENSORPIPE_HAS_SHM_TRANSPORT
@@ -435,6 +437,8 @@ PYBIND11_MODULE(pytensorpipe, module) {
       module, "AbstractChannel");
 
   module.def("create_basic_channel", &tensorpipe::channel::basic::create);
+
+
 
 #if TENSORPIPE_HAS_CMA_CHANNEL
   module.def("create_cma_channel", &tensorpipe::channel::cma::create);

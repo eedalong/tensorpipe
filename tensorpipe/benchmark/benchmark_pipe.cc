@@ -15,40 +15,11 @@
 #include <tensorpipe/benchmark/options.h>
 #include <tensorpipe/benchmark/transport_registry.h>
 #include <tensorpipe/common/cpu_buffer.h>
-#include <tensorpipe/common/cuda.h>
-#include <tensorpipe/common/cuda_buffer.h>
 #include <tensorpipe/common/defs.h>
 #include <tensorpipe/core/context.h>
 #include <tensorpipe/core/listener.h>
 #include <tensorpipe/core/pipe.h>
 
-// We might sometimes want to run this benchmark using NCCL instead of
-// TensorPipe. We don't want to include NCCL as a submodule and deal with the
-// build issues. So we've prepared the code and left it around, but disabled it.
-#if USE_NCCL
-#include <nccl.h>
-
-#define TP_NCCL_CHECK(op)                   \
-  {                                         \
-    ncclResult_t res = (op);                \
-    TP_THROW_ASSERT_IF(res != ncclSuccess); \
-  }
-
-struct NcclCommDeleter {
-  void operator()(ncclComm_t comm) {
-    TP_NCCL_CHECK(ncclCommDestroy(comm));
-  }
-};
-
-using NcclComm =
-    std::unique_ptr<std::remove_pointer_t<ncclComm_t>, NcclCommDeleter>;
-
-static NcclComm createNcclComm(int rank, int worldSize, ncclUniqueId uniqueId) {
-  ncclComm_t comm;
-  TP_NCCL_CHECK(ncclCommInitRank(&comm, worldSize, uniqueId, rank));
-  return NcclComm(comm, NcclCommDeleter{});
-}
-#endif // USE_NCCL
 
 using namespace tensorpipe;
 using namespace tensorpipe::benchmark;
@@ -57,22 +28,6 @@ static constexpr int kNumWarmUpRounds = 5;
 
 using Payload = std::unique_ptr<uint8_t[]>;
 using CpuTensor = std::unique_ptr<uint8_t[]>;
-
-struct CudaMemoryDeleter {
-  void operator()(void* ptr) {
-    TP_CUDA_CHECK(cudaFree(ptr));
-  }
-};
-
-struct CudaStreamDeleter {
-  void operator()(cudaStream_t stream) {
-    TP_CUDA_CHECK(cudaStreamDestroy(stream));
-  }
-};
-
-using CudaTensor = std::unique_ptr<uint8_t[], CudaMemoryDeleter>;
-using CudaStream =
-    std::unique_ptr<std::remove_pointer_t<cudaStream_t>, CudaStreamDeleter>;
 
 struct Data {
   size_t numPayloads;
@@ -85,18 +40,10 @@ struct Data {
   size_t tensorSize;
   TensorType tensorType;
   std::vector<CpuTensor> expectedCpuTensor;
-  std::vector<CudaTensor> expectedCudaTensor;
   std::vector<std::string> expectedTensorMetadata;
   std::vector<CpuTensor> temporaryCpuTensor;
-  std::vector<CudaTensor> temporaryCudaTensor;
-  CudaStream cudaStream;
-  size_t cudaSyncPeriod;
-
   std::string expectedMetadata;
 
-#if USE_NCCL
-  NcclComm ncclComm;
-#endif // USE_NCCL
 };
 
 struct MultiDeviceMeasurements {
@@ -134,7 +81,6 @@ static void printMultiDeviceMeasurements(
     MultiDeviceMeasurements& measurements,
     size_t dataLen) {
   printMeasurements(measurements.cpu, dataLen);
-  printMeasurements(measurements.cuda, dataLen);
 }
 
 static std::unique_ptr<uint8_t[]> createEmptyCpuData(size_t size) {
@@ -150,26 +96,6 @@ static std::unique_ptr<uint8_t[]> createFullCpuData(size_t size) {
   return data;
 }
 
-static CudaTensor createEmptyCudaData(size_t size) {
-  uint8_t* ptr;
-  TP_CUDA_CHECK(cudaMalloc(&ptr, size));
-  return CudaTensor(ptr);
-}
-
-static CudaTensor createFullCudaData(size_t size) {
-  uint8_t* ptr;
-  TP_CUDA_CHECK(cudaMalloc(&ptr, size));
-  CpuTensor data = createFullCpuData(size);
-  TP_CUDA_CHECK(cudaMemcpy(ptr, data.get(), size, cudaMemcpyHostToDevice));
-  return CudaTensor(ptr);
-}
-
-static CudaStream createCudaStream() {
-  cudaStream_t stream;
-  TP_CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-  return CudaStream(stream);
-}
-
 static void serverPongPingNonBlock(
     std::shared_ptr<Pipe> pipe,
     int& numWarmUps,
@@ -177,27 +103,7 @@ static void serverPongPingNonBlock(
     std::promise<void>& doneProm,
     Data& data,
     Measurements& measurements) {
-#if USE_NCCL
-  for (int iterIdx = 0; iterIdx < numWarmUps + numRoundTrips; iterIdx++) {
-    // TODO Handle multiple tensors.
-    TP_NCCL_CHECK(ncclRecv(
-        data.temporaryCudaTensor[0].get(),
-        data.tensorSize,
-        ncclInt8,
-        1,
-        data.ncclComm.get(),
-        data.cudaStream.get()));
-    TP_NCCL_CHECK(ncclSend(
-        data.temporaryCudaTensor[0].get(),
-        data.tensorSize,
-        ncclInt8,
-        1,
-        data.ncclComm.get(),
-        data.cudaStream.get()));
-  }
-  doneProm.set_value();
-  return;
-#endif // USE_NCCL
+
   pipe->readDescriptor(
       [pipe, &numWarmUps, &numRoundTrips, &doneProm, &data, &measurements](
           const Error& error, Descriptor descriptor) {
@@ -231,11 +137,6 @@ static void serverPongPingNonBlock(
             if (data.tensorType == TensorType::kCpu) {
               allocation.tensors[tensorIdx].buffer = CpuBuffer{
                   .ptr = data.temporaryCpuTensor[tensorIdx].get(),
-              };
-            } else if (data.tensorType == TensorType::kCuda) {
-              allocation.tensors[tensorIdx].buffer = CudaBuffer{
-                  .ptr = data.temporaryCudaTensor[tensorIdx].get(),
-                  .stream = data.cudaStream.get(),
               };
             } else {
               TP_THROW_ASSERT() << "Unknown tensor type";
@@ -295,8 +196,6 @@ static void serverPongPingNonBlock(
                             data.expectedCpuTensor[tensorIdx].get(),
                             descriptor.tensors[tensorIdx].length),
                         0);
-                  } else if (data.tensorType == TensorType::kCuda) {
-                    // No (easy) way to do a memcmp with CUDA, I believe...
                   } else {
                     TP_THROW_ASSERT() << "Unknown tensor type";
                   }
@@ -365,16 +264,10 @@ static void runServer(const Options& options) {
     if (options.tensorType == TensorType::kCpu) {
       data.expectedCpuTensor.push_back(createFullCpuData(options.tensorSize));
       data.temporaryCpuTensor.push_back(createEmptyCpuData(options.tensorSize));
-    } else if (options.tensorType == TensorType::kCuda) {
-      data.expectedCudaTensor.push_back(createFullCudaData(options.tensorSize));
-      data.temporaryCudaTensor.push_back(
-          createEmptyCudaData(options.tensorSize));
-      data.cudaStream = createCudaStream();
     } else {
       TP_THROW_ASSERT() << "Unknown tensor type";
     }
   }
-  data.cudaSyncPeriod = options.cudaSyncPeriod;
   data.expectedMetadata = std::string(options.metadataSize, 0x42);
 
   Measurements measurements;
@@ -391,24 +284,15 @@ static void runServer(const Options& options) {
   context->registerChannel(0, options.channel, channelContext);
 
   std::promise<std::shared_ptr<Pipe>> pipeProm;
+  std::cout<<"start to listen on "<< addr<<std::endl;
   std::shared_ptr<Listener> listener = context->listen({addr});
+
   listener->accept([&](const Error& error, std::shared_ptr<Pipe> pipe) {
     TP_THROW_ASSERT_IF(error) << error.what();
     pipeProm.set_value(std::move(pipe));
   });
   std::shared_ptr<Pipe> pipe = pipeProm.get_future().get();
 
-#if USE_NCCL
-  std::promise<ncclUniqueId> uniqueIdProm;
-  pipe->readDescriptor([&](const Error& error, Descriptor descriptor) {
-    TP_THROW_ASSERT_IF(error) << error.what();
-    uniqueIdProm.set_value(
-        *reinterpret_cast<const ncclUniqueId*>(descriptor.metadata.c_str()));
-  });
-  ncclUniqueId uniqueId = uniqueIdProm.get_future().get();
-
-  data.ncclComm = createNcclComm(/*rank=*/0, /*worldSize=*/2, uniqueId);
-#endif
 
   std::promise<void> doneProm;
   serverPongPingNonBlock(
@@ -426,45 +310,9 @@ static void clientPingPongNonBlock(
     std::promise<void>& doneProm,
     Data& data,
     MultiDeviceMeasurements& measurements) {
-#if USE_NCCL
-  for (int iterIdx = 0; iterIdx < numWarmUps + numRoundTrips; iterIdx++) {
-    if (iterIdx >= numWarmUps) {
-      measurements.cpu.markStart();
-      if ((iterIdx - numWarmUps) % data.cudaSyncPeriod == 0) {
-        measurements.cuda.markStart();
-      }
-    }
-    TP_NCCL_CHECK(ncclSend(
-        data.expectedCudaTensor[0].get(),
-        data.tensorSize,
-        ncclInt8,
-        0,
-        data.ncclComm.get(),
-        data.cudaStream.get()));
-    TP_NCCL_CHECK(ncclRecv(
-        data.temporaryCudaTensor[0].get(),
-        data.tensorSize,
-        ncclInt8,
-        0,
-        data.ncclComm.get(),
-        data.cudaStream.get()));
-    if (iterIdx >= numWarmUps) {
-      measurements.cpu.markStop();
-      if ((iterIdx - numWarmUps + 1) % data.cudaSyncPeriod == 0) {
-        TP_CUDA_CHECK(cudaStreamSynchronize(data.cudaStream.get()));
-        measurements.cuda.markStop(data.cudaSyncPeriod);
-      }
-    }
-  }
-  printMultiDeviceMeasurements(measurements, data.payloadSize);
-  doneProm.set_value();
-  return;
-#endif // USE_NCCL
+
   if (numWarmUps == 0) {
     measurements.cpu.markStart();
-    if (numRoundTrips % data.cudaSyncPeriod == 0) {
-      measurements.cuda.markStart();
-    }
   }
   Message message;
   message.metadata = data.expectedMetadata;
@@ -486,12 +334,6 @@ static void clientPingPongNonBlock(
         tensor.buffer =
             CpuBuffer{.ptr = data.expectedCpuTensor[tensorIdx].get()};
         tensor.targetDevice = Device(kCpuDeviceType, 0);
-      } else if (data.tensorType == TensorType::kCuda) {
-        tensor.buffer = CudaBuffer{
-            .ptr = data.expectedCudaTensor[tensorIdx].get(),
-            .stream = data.cudaStream.get(),
-        };
-        tensor.targetDevice = Device(kCudaDeviceType, 0);
       } else {
         TP_THROW_ASSERT() << "Unknown tensor type";
       }
@@ -546,12 +388,7 @@ static void clientPingPongNonBlock(
                 allocation.tensors[tensorIdx].buffer = CpuBuffer{
                     .ptr = data.temporaryCpuTensor[tensorIdx].get(),
                 };
-              } else if (data.tensorType == TensorType::kCuda) {
-                allocation.tensors[tensorIdx].buffer = CudaBuffer{
-                    .ptr = data.temporaryCudaTensor[tensorIdx].get(),
-                    .stream = data.cudaStream.get(),
-                };
-              } else {
+              }else {
                 TP_THROW_ASSERT() << "Unknown tensor type";
               }
             }
@@ -570,10 +407,6 @@ static void clientPingPongNonBlock(
                allocation](const Error& error) {
                 if (numWarmUps == 0) {
                   measurements.cpu.markStop();
-                  if ((numRoundTrips - 1) % data.cudaSyncPeriod == 0) {
-                    TP_CUDA_CHECK(cudaStreamSynchronize(data.cudaStream.get()));
-                    measurements.cuda.markStop(data.cudaSyncPeriod);
-                  }
                 }
                 TP_THROW_ASSERT_IF(error) << error.what();
                 if (data.payloadSize > 0) {
@@ -603,10 +436,7 @@ static void clientPingPongNonBlock(
                               data.expectedCpuTensor[tensorIdx].get(),
                               descriptor.tensors[tensorIdx].length),
                           0);
-                    } else if (data.tensorType == TensorType::kCuda) {
-                      // No (easy) way to do a memcmp with CUDA, I
-                      // believe...
-                    } else {
+                    }  else {
                       TP_THROW_ASSERT() << "Unknown tensor type";
                     }
                   }
@@ -659,21 +489,14 @@ static void runClient(const Options& options) {
     if (data.tensorType == TensorType::kCpu) {
       data.expectedCpuTensor.push_back(createFullCpuData(options.tensorSize));
       data.temporaryCpuTensor.push_back(createEmptyCpuData(options.tensorSize));
-    } else if (data.tensorType == TensorType::kCuda) {
-      data.expectedCudaTensor.push_back(createFullCudaData(options.tensorSize));
-      data.temporaryCudaTensor.push_back(
-          createEmptyCudaData(options.tensorSize));
-      data.cudaStream = createCudaStream();
     } else {
       TP_THROW_ASSERT() << "Unknown tensor type";
     }
   }
-  data.cudaSyncPeriod = options.cudaSyncPeriod;
   data.expectedMetadata = std::string(options.metadataSize, 0x42);
 
   MultiDeviceMeasurements measurements;
   measurements.cpu.reserve(options.numRoundTrips);
-  measurements.cuda.reserve(options.numRoundTrips / data.cudaSyncPeriod);
 
   std::shared_ptr<Context> context = std::make_shared<Context>();
   auto transportContext =
@@ -685,24 +508,10 @@ static void runClient(const Options& options) {
   validateChannelContext(channelContext);
   context->registerChannel(0, options.channel, channelContext);
 
+  std::cout<<"Clinet Trying to connect " << addr <<std::endl;
   std::shared_ptr<Pipe> pipe = context->connect(addr);
 
-#if USE_NCCL
-  ncclUniqueId uniqueId;
-  TP_NCCL_CHECK(ncclGetUniqueId(&uniqueId));
-  Message message;
-  message.metadata = std::string(
-      reinterpret_cast<char*>(&uniqueId),
-      reinterpret_cast<char*>(&uniqueId) + sizeof(ncclUniqueId));
-  std::promise<void> promise;
-  pipe->write(std::move(message), [&](const Error& error) {
-    TP_THROW_ASSERT_IF(error) << error.what();
-    promise.set_value();
-  });
-  promise.get_future().get();
 
-  data.ncclComm = createNcclComm(/*rank=*/1, /*worldSize=*/2, uniqueId);
-#endif // USE_NCCL
 
   std::promise<void> doneProm;
   clientPingPongNonBlock(
@@ -714,6 +523,11 @@ static void runClient(const Options& options) {
 
 int main(int argc, char** argv) {
   struct Options x = parseOptions(argc, argv);
+  x.numTensors = 1;
+  // tensorSize = 128MB
+  x.tensorSize = 1024 * 1024 * 128 ;
+  x.numRoundTrips = 1;
+  
   std::cout << "mode = " << x.mode << "\n";
   std::cout << "transport = " << x.transport << "\n";
   std::cout << "channel = " << x.channel << "\n";
