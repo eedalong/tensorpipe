@@ -544,6 +544,8 @@ static void runClient(const Options& options) {
   context->join();
 }
 
+// run  server on komodo2: ./benchmark_pipe --mode listen --transport ibv --channel basic --address ibv://155.198.152.17:3344 --num-round-trips 10
+// run  client on any komodo machine: ./benchmark_pipe --mode connect --transport ibv --channel basic --address ibv://155.198.152.17:3344 --num-round-trips 10
 int main(int argc, char** argv) {
   struct Options x = parseOptions(argc, argv);
   x.numTensors = 1;
