@@ -373,17 +373,21 @@ void ConnectionImpl::processReadOperationsFromLoop() {
 void ConnectionImpl::processWriteOperationsFromLoop() {
   TP_DCHECK(context_->inLoop());
   static int data_sent = 0;
+  static auto start = std::chrono::system_clock::now();
 
   if (state_ != ESTABLISHED) {
     return;
   }
 
   OutboxProducer outboxProducer(outboxRb_);
+  //std::cout <<"=========================START NEW WRITE  ========================"<<std::endl;
+
   //std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
   while (!writeOperations_.empty()) {
 
+    auto start2 = std::chrono::system_clock::now();
     RingbufferWriteOperation& writeOperation = writeOperations_.front();
-    auto start = std::chrono::system_clock::now();
+    
     ssize_t len = writeOperation.handleWrite(outboxProducer);
     if (len > 0) {
       ssize_t ret;
@@ -412,41 +416,30 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
         info.remoteAddr = peerInboxPtr_ + peerInboxOffset;
         info.rkey = peerInboxKey_;
 
-        auto end3 = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds3 = end3-start;
-        if(len > 1 * 1024 * 1024){
-          std::cout << data_sent<<" Prepraring For Sending Over IB " << len << " Consumed " << elapsed_seconds3.count() << std::endl;
-        }
+  
 
         TP_VLOG(9) << "Connection " << id_
                    << " is posting a RDMA write request (transmitting "
                    << info.length << " bytes) on QP " << qp_->qp_num;
-        auto start2 = std::chrono::system_clock::now();
         context_->getReactor().postWrite(qp_, info);
-        auto end2 = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds2 = end2-start2;
-        if(len > 1 * 1024 * 1024){
-          std::cout << data_sent<<" Sending Data Over IB " << len << " Consumed " << elapsed_seconds2.count() << std::endl;
-        }
-
-
+      
         numWritesInFlight_++;
       }
 
       ret = outboxConsumer.commitTx();
       TP_THROW_SYSTEM_IF(ret < 0, -ret);
     }
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end-start;
-    if(len > 2* 1024 * 1024){
-      std::cout <<  data_sent<< " Total Sending Data For " << len << " Consumed " << elapsed_seconds.count() << std::endl;
-    }
+    auto end2 = std::chrono::system_clock::now();
+    std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Actual Consumed " << (end2 - start2).count() / 1000<< std::endl;
+    std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Cummed Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
+
+
 
     if (writeOperation.completed()) {
       writeOperations_.pop_front();
+      std::cout <<  data_sent<< " Total Sending Data For Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
       data_sent += 1;
-      //std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
-
+      start = std::chrono::system_clock::now();
     } else {
       break;
     }
@@ -475,8 +468,8 @@ void ConnectionImpl::onRemoteProducedData(uint32_t length) {
 
 void ConnectionImpl::onRemoteConsumedData(uint32_t length) {
   TP_DCHECK(context_->inLoop());
-  TP_VLOG(9) << "Connection " << id_ << " was signalled that " << length
-             << " bytes were read from its outbox on QP " << qp_->qp_num;
+  std::cout << "Connection " << id_ << " was signalled that " << length
+             << " bytes were read from its outbox on QP " << qp_->qp_num << std::endl;
   ssize_t ret;
   OutboxIbvAcker outboxConsumer(outboxRb_);
 

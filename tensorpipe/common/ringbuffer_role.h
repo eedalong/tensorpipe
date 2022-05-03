@@ -205,7 +205,7 @@ class RingBufferRole {
     std::array<Buffer, 2> buffers;
     std::tie(numBuffers, buffers) = accessContiguousInTx<AllowPartial>(size);
 
-    std::cout<<status << " Check Buffer Size in RingBufferRole File = " << size <<" bytes" <<std::endl;  
+    //std::cout<<status << " Check Buffer Size in RingBufferRole File = " << size <<" bytes" <<std::endl;  
     if (unlikely(numBuffers < 0)) {
       return numBuffers;
     }
@@ -215,7 +215,7 @@ class RingBufferRole {
       return 0;
     } else if (likely(numBuffers == 1)) {
       std::memcpy(buffers[0].ptr, buffer, buffers[0].len);
-      std::cout<<status <<" Check Memcpy Size in RingBufferRole File, NumBuffers = 1, Copied " << buffers[0].len<<" bytes" <<std::endl;  
+      //std::cout<<status <<" Check Memcpy Size in RingBufferRole File, NumBuffers = 1, Copied " << buffers[0].len<<" bytes" <<std::endl;  
 
       return buffers[0].len;
     } else if (likely(numBuffers == 2)) {
@@ -224,7 +224,7 @@ class RingBufferRole {
           buffers[1].ptr,
           reinterpret_cast<const uint8_t*>(buffer) + buffers[0].len,
           buffers[1].len);
-      std::cout<<status<<" Check Memcpy Size in RingBufferRole File, NumBuffers = 2, Copied " << buffers[0].len + buffers[1].len / 1024 / 1024 <<" bytes" <<std::endl;  
+      //std::cout<<status<<" Check Memcpy Size in RingBufferRole File, NumBuffers = 2, Copied " << buffers[0].len + buffers[1].len / 1024 / 1024 <<" bytes" <<std::endl;  
 
       return buffers[0].len + buffers[1].len;
     } else {
