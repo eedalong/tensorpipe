@@ -38,7 +38,7 @@ class ConnectionImpl final : public ConnectionImplBoilerplate<
                                  ConnectionImpl>,
                              public EpollLoop::EventHandler,
                              public IbvEventHandler {
-  constexpr static size_t kBufferSize = 128 * 1024 * 1024;
+  constexpr static size_t kBufferSize = 4 * 1024 * 1024;
 
   constexpr static int kNumOutboxRingbufferRoles = 3;
   using OutboxIbvAcker = RingBufferRole<kNumOutboxRingbufferRoles, 0>;

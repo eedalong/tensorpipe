@@ -11,6 +11,10 @@
 #include <tensorpipe/common/system.h>
 #include <tensorpipe/transport/ibv/constants.h>
 
+#include <iostream>
+#include <ctime>
+#include <chrono>
+
 namespace tensorpipe {
 namespace transport {
 namespace ibv {
@@ -169,6 +173,7 @@ void Reactor::unregisterQp(uint32_t qpn) {
 }
 
 void Reactor::postWrite(IbvQueuePair& qp, WriteInfo info) {
+  std::cout<<"Check numAvailableWrites_ "<< numAvailableWrites_ << std::endl;
   if (numAvailableWrites_ > 0) {
     IbvLib::sge list;
     list.addr = reinterpret_cast<uint64_t>(info.addr);
@@ -192,8 +197,8 @@ void Reactor::postWrite(IbvQueuePair& qp, WriteInfo info) {
     TP_THROW_ASSERT_IF(badWr != nullptr);
     numAvailableWrites_--;
   } else {
-    TP_VLOG(9) << "Transport context " << id_
-               << " queueing up RDMA write for QP " << qp->qp_num;
+    std::cout << "Transport context " << id_
+               << " queueing up RDMA write for QP " << qp->qp_num << std::endl;
     pendingQpWrites_.emplace_back(qp, info);
   }
 }
