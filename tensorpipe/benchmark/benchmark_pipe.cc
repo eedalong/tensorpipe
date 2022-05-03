@@ -24,7 +24,7 @@
 using namespace tensorpipe;
 using namespace tensorpipe::benchmark;
 
-static constexpr int kNumWarmUpRounds = 0;
+static constexpr int kNumWarmUpRounds = 5;
 
 using Payload = std::unique_ptr<uint8_t[]>;
 using CpuTensor = std::unique_ptr<uint8_t[]>;
@@ -63,17 +63,17 @@ static void printMeasurements(Measurements& measurements, size_t dataLen) {
       "avg (usec)",
       "p50",
       "p75",
-      "p90",
+      "p80",
       "p95");
   fprintf(
       stderr,
       "%-15lu %-15lu %-12.3f %-7.3f %-7.3f %-7.3f %-7.3f\n",
       dataLen,
       measurements.size(),
-      measurements.sum().count() / (float)measurements.size() / 1000.0,
+      measurements.avg_without_outlier().count() / 1000.0,
       measurements.percentile(0.50).count() / 1000.0,
       measurements.percentile(0.75).count() / 1000.0,
-      measurements.percentile(0.90).count() / 1000.0,
+      measurements.percentile(0.80).count() / 1000.0,
       measurements.percentile(0.95).count() / 1000.0);
 }
 

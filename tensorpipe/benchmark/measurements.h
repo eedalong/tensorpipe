@@ -48,6 +48,19 @@ class Measurements {
     return sum;
   }
 
+  nanoseconds avg_without_outlier() const {
+
+    int start = int(size() * 0.1);
+    int end = size() - int(size() * 0.1);
+    nanoseconds sum{0};
+    for( int index = start; index < end; index ++) {
+      auto sample = samples_[index];
+      sum += sample;
+    }
+    return sum / (end - start);
+  }
+
+
   nanoseconds percentile(float f) const {
     return samples_[static_cast<size_t>(f * samples_.size())];
   }
