@@ -24,7 +24,7 @@
 using namespace tensorpipe;
 using namespace tensorpipe::benchmark;
 
-static constexpr int kNumWarmUpRounds = 5;
+static constexpr int kNumWarmUpRounds = 0;
 
 using Payload = std::unique_ptr<uint8_t[]>;
 using CpuTensor = std::unique_ptr<uint8_t[]>;

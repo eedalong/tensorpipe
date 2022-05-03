@@ -29,6 +29,9 @@
 #include <tensorpipe/transport/ibv/reactor.h>
 #include <tensorpipe/transport/ibv/sockaddr.h>
 
+#include <iostream>
+
+
 namespace tensorpipe {
 namespace transport {
 namespace ibv {
@@ -196,6 +199,8 @@ void ConnectionImpl::writeImplFromLoop(
     const void* ptr,
     size_t length,
     write_callback_fn fn) {
+  
+  std::cout << "Check Data Length in IBV Connection" << length / 1024 / 1024 << " M" << std::endl;
   writeOperations_.emplace_back(ptr, length, std::move(fn));
 
   // If the outbox has some free space, we may be able to process this operation
@@ -371,6 +376,7 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
   }
 
   OutboxProducer outboxProducer(outboxRb_);
+  //std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
   while (!writeOperations_.empty()) {
     RingbufferWriteOperation& writeOperation = writeOperations_.front();
     ssize_t len = writeOperation.handleWrite(outboxProducer);
@@ -387,6 +393,7 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
       std::tie(numBuffers, buffers) =
           outboxConsumer.accessContiguousInTx</*AllowPartial=*/false>(len);
       TP_THROW_SYSTEM_IF(numBuffers < 0, -numBuffers);
+
 
       for (int bufferIdx = 0; bufferIdx < numBuffers; bufferIdx++) {
         Reactor::WriteInfo info;
@@ -412,6 +419,8 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
     }
     if (writeOperation.completed()) {
       writeOperations_.pop_front();
+      //std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
+
     } else {
       break;
     }

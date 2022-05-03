@@ -199,10 +199,13 @@ class RingBufferRole {
   [[nodiscard]] ssize_t writeInTx(
       const void* buffer,
       const size_t size) noexcept {
+    static int status = 0;
+    status += 1;
     ssize_t numBuffers;
     std::array<Buffer, 2> buffers;
     std::tie(numBuffers, buffers) = accessContiguousInTx<AllowPartial>(size);
 
+    std::cout<<status << " Check Buffer Size in RingBufferRole File = " << size <<" bytes" <<std::endl;  
     if (unlikely(numBuffers < 0)) {
       return numBuffers;
     }
@@ -212,6 +215,8 @@ class RingBufferRole {
       return 0;
     } else if (likely(numBuffers == 1)) {
       std::memcpy(buffers[0].ptr, buffer, buffers[0].len);
+      std::cout<<status <<" Check Memcpy Size in RingBufferRole File, NumBuffers = 1, Copied " << buffers[0].len<<" bytes" <<std::endl;  
+
       return buffers[0].len;
     } else if (likely(numBuffers == 2)) {
       std::memcpy(buffers[0].ptr, buffer, buffers[0].len);
@@ -219,6 +224,8 @@ class RingBufferRole {
           buffers[1].ptr,
           reinterpret_cast<const uint8_t*>(buffer) + buffers[0].len,
           buffers[1].len);
+      std::cout<<status<<" Check Memcpy Size in RingBufferRole File, NumBuffers = 2, Copied " << buffers[0].len + buffers[1].len / 1024 / 1024 <<" bytes" <<std::endl;  
+
       return buffers[0].len + buffers[1].len;
     } else {
       TP_THROW_ASSERT() << "Bad number of buffers: " << numBuffers;

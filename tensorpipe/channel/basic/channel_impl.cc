@@ -18,6 +18,7 @@
 #include <tensorpipe/common/error.h>
 #include <tensorpipe/transport/connection.h>
 
+#include <iostream>
 namespace tensorpipe {
 namespace channel {
 namespace basic {
@@ -85,8 +86,12 @@ void ChannelImpl::advanceSendOperation(
 void ChannelImpl::write(SendOpIter opIter) {
   SendOperation& op = *opIter;
 
-  TP_VLOG(6) << "Channel " << id_ << " is writing payload (#"
-             << op.sequenceNumber << ")";
+  std::cout << "Channel " << id_ << " is writing payload (#"
+             << op.sequenceNumber << ")" << std::endl;
+  
+  std::cout<< "Channel Data Length Sent Over Channel = " << op.length / 1024 / 1024 <<" M" << std::endl;
+  //std::cout<< " ===================================================================================" << std::endl;
+
   connection_->write(
       op.ptr, op.length, callbackWrapper_([opIter](ChannelImpl& impl) {
         TP_VLOG(6) << "Channel " << impl.id_ << " done writing payload (#"
@@ -94,6 +99,7 @@ void ChannelImpl::write(SendOpIter opIter) {
         opIter->doneWriting = true;
         impl.sendOps_.advanceOperation(opIter);
       }));
+  
 }
 
 void ChannelImpl::callSendCallback(SendOpIter opIter) {
