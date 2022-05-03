@@ -19,12 +19,13 @@
 #include <tensorpipe/core/context.h>
 #include <tensorpipe/core/listener.h>
 #include <tensorpipe/core/pipe.h>
-
+#include <iostream>
+#include <chrono>
 
 using namespace tensorpipe;
 using namespace tensorpipe::benchmark;
 
-static constexpr int kNumWarmUpRounds = 5;
+static constexpr int kNumWarmUpRounds = 0;
 
 using Payload = std::unique_ptr<uint8_t[]>;
 using CpuTensor = std::unique_ptr<uint8_t[]>;
@@ -353,6 +354,8 @@ static void clientPingPongNonBlock(
   } else {
     TP_DCHECK_EQ(message.tensors.size(), 0);
   }
+  std::cout << "=============================BEGIN TO TEST========================================="<<std::endl;
+
   pipe->write(
       std::move(message),
       [pipe, &numWarmUps, &numRoundTrips, &doneProm, &data, &measurements](

@@ -22,6 +22,9 @@
 #include <tensorpipe/core/listener.h>
 #include <tensorpipe/core/listener_impl.h>
 #include <tensorpipe/transport/connection.h>
+#include <chrono>
+#include <ctime>
+#include <iostream>
 
 namespace tensorpipe {
 
@@ -238,6 +241,7 @@ PipeImpl::PipeImpl(
   descriptorConnection_ =
       context_->getTransport(transport_)->connect(std::move(address));
   descriptorConnection_->setId(id_ + ".d.tr_" + transport_);
+
 }
 
 PipeImpl::PipeImpl(
@@ -260,6 +264,7 @@ PipeImpl::PipeImpl(
 void PipeImpl::init() {
   context_->deferToLoop(
       [impl{this->shared_from_this()}]() { impl->initFromLoop(); });
+    
 }
 
 void PipeImpl::initFromLoop() {
@@ -513,6 +518,8 @@ void PipeImpl::receiveTensorsOfMessage(ReadOpIter opIter) {
 void PipeImpl::writeDescriptorReplyOfMessage(ReadOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
+  start_point = std::chrono::system_clock::now();
+
   ReadOperation& op = *opIter;
 
   TP_DCHECK(op.hasMissingTargetDevices);
@@ -534,6 +541,9 @@ void PipeImpl::writeDescriptorReplyOfMessage(ReadOpIter opIter) {
 }
 
 void PipeImpl::write(Message message, write_callback_fn fn) {
+
+  start_point = std::chrono::system_clock::now();
+
   context_->deferToLoop([impl{this->shared_from_this()},
                          message{std::move(message)},
                          fn{std::move(fn)}]() mutable {
@@ -607,6 +617,7 @@ void PipeImpl::callReadCallback(ReadOpIter opIter) {
 void PipeImpl::callWriteCallback(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
+  std::cout << "SEND FINISHED, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
   WriteOperation& op = *opIter;
 
   op.writeCallback(error_);
@@ -873,12 +884,16 @@ void PipeImpl::expectReadCall(ReadOpIter opIter) {
 }
 
 void PipeImpl::sendTensorsOfMessage(WriteOpIter opIter) {
+
+
   TP_DCHECK(context_->inLoop());
 
   WriteOperation& op = *opIter;
 
-  TP_VLOG(2) << "Pipe " << id_ << " is sending tensors of message #"
-             << op.sequenceNumber;
+  std::cout << "Pipe " << id_ << " is sending tensors of message #"
+             << op.sequenceNumber << std::endl;
+  std::cout << "BEGIN TO SEND TENSORS, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+
 
   TP_DCHECK_EQ(op.message.tensors.size(), op.tensors.size());
   for (size_t tensorIdx = 0; tensorIdx < op.message.tensors.size();
@@ -909,15 +924,21 @@ void PipeImpl::sendTensorsOfMessage(WriteOpIter opIter) {
                      << opIter->sequenceNumber << "." << tensorIdx;
           opIter->numTensorsBeingSent--;
           impl.writeOps_.advanceOperation(opIter);
+
         }));
 
     ++op.numTensorsBeingSent;
   }
+
+
 }
 
 void PipeImpl::writeDescriptorOfMessage(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
+  std::cout << "REAL START TO SEND, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+
+  start_point = std::chrono::system_clock::now();
   WriteOperation& op = *opIter;
 
   std::shared_ptr<NopHolder<Descriptor>> holder = makeDescriptorForMessage(op);
@@ -931,6 +952,7 @@ void PipeImpl::writeDescriptorOfMessage(WriteOpIter opIter) {
             TP_VLOG(3) << "Pipe " << impl.id_
                        << " done writing nop object (message descriptor #"
                        << sequenceNumber << ")";
+            
           }));
 }
 
@@ -962,6 +984,8 @@ void PipeImpl::writePayloadsOfMessage(WriteOpIter opIter) {
 
 void PipeImpl::readDescriptorReplyOfMessage(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
+  std::cout << "PAYLOADS & DESCRIPTION, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+
 
   WriteOperation& op = *opIter;
 

@@ -28,6 +28,7 @@
 #include <tensorpipe/core/nop_types.h>
 #include <tensorpipe/core/pipe.h>
 #include <tensorpipe/transport/context.h>
+#include <chrono>
 
 namespace tensorpipe {
 
@@ -293,6 +294,8 @@ class PipeImpl final : public std::enable_shared_from_this<PipeImpl> {
   std::vector<uint64_t>& registerChannel(const std::string& channelName);
 
   bool pendingRegistrations();
+
+  std::chrono::time_point<std::chrono::system_clock> start_point;
 
   template <typename T>
   friend class CallbackWrapper;

@@ -201,7 +201,8 @@ void ConnectionImpl::writeImplFromLoop(
     size_t length,
     write_callback_fn fn) {
   
-  std::cout << "Check Data Length in IBV Connection" << length / 1024 / 1024 << " M" << std::endl;
+  std::cout <<"==============================CHANNEL BEGIN TO SEND=========================================="<<std::endl;
+  std::cout << "Check Data Length in IBV Connection " << length / 1024 / 1024 << " M" << std::endl;
   writeOperations_.emplace_back(ptr, length, std::move(fn));
 
   // If the outbox has some free space, we may be able to process this operation
