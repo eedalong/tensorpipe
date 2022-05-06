@@ -173,7 +173,7 @@ void Reactor::unregisterQp(uint32_t qpn) {
 }
 
 void Reactor::postWrite(IbvQueuePair& qp, WriteInfo info) {
-  //std::cout<<"Check numAvailableWrites_ "<< numAvailableWrites_ << std::endl;
+  ////////std::cout<<"Check numAvailableWrites_ "<< numAvailableWrites_ << std::endl;
   if (numAvailableWrites_ > 0) {
     IbvLib::sge list;
     list.addr = reinterpret_cast<uint64_t>(info.addr);
@@ -191,14 +191,14 @@ void Reactor::postWrite(IbvQueuePair& qp, WriteInfo info) {
     wr.wr.rdma.rkey = info.rkey;
 
     IbvLib::send_wr* badWr = nullptr;
-    std::cout << "Transport context " << id_ << " posting RDMA write for QP "
-               << qp->qp_num << std::endl;
+    //////std::cout << "Transport context " << id_ << " posting RDMA write for QP "
+    //           << qp->qp_num << std::endl;
     TP_CHECK_IBV_INT(getIbvLib().post_send(qp.get(), &wr, &badWr));
     TP_THROW_ASSERT_IF(badWr != nullptr);
     numAvailableWrites_--;
   } else {
-    std::cout << "Transport context " << id_
-               << " queueing up RDMA write for QP " << qp->qp_num << std::endl;
+    //////std::cout << "Transport context " << id_
+    //           << " queueing up RDMA write for QP " << qp->qp_num << std::endl;
     pendingQpWrites_.emplace_back(qp, info);
   }
 }
