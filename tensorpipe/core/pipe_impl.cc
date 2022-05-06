@@ -617,7 +617,7 @@ void PipeImpl::callReadCallback(ReadOpIter opIter) {
 void PipeImpl::callWriteCallback(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
-  std::cout << "SEND FINISHED, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+  //std::cout << "SEND FINISHED, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
   WriteOperation& op = *opIter;
 
   op.writeCallback(error_);
@@ -890,9 +890,9 @@ void PipeImpl::sendTensorsOfMessage(WriteOpIter opIter) {
 
   WriteOperation& op = *opIter;
 
-  std::cout << "Pipe " << id_ << " is sending tensors of message #"
-             << op.sequenceNumber << std::endl;
-  std::cout << "BEGIN TO SEND TENSORS, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+  //std::cout << "Pipe " << id_ << " is sending tensors of message #"
+  //           << op.sequenceNumber << std::endl;
+  //std::cout << "BEGIN TO SEND TENSORS, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
 
 
   TP_DCHECK_EQ(op.message.tensors.size(), op.tensors.size());
@@ -936,7 +936,7 @@ void PipeImpl::sendTensorsOfMessage(WriteOpIter opIter) {
 void PipeImpl::writeDescriptorOfMessage(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
 
-  std::cout << "REAL START TO SEND, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+  //std::cout << "REAL START TO SEND, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
 
   start_point = std::chrono::system_clock::now();
   WriteOperation& op = *opIter;
@@ -984,7 +984,7 @@ void PipeImpl::writePayloadsOfMessage(WriteOpIter opIter) {
 
 void PipeImpl::readDescriptorReplyOfMessage(WriteOpIter opIter) {
   TP_DCHECK(context_->inLoop());
-  std::cout << "PAYLOADS & DESCRIPTION, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
+  //std::cout << "PAYLOADS & DESCRIPTION, ELAPSED "<< (std::chrono::system_clock::now() - start_point).count() / 1000 << std::endl;
 
 
   WriteOperation& op = *opIter;
