@@ -201,8 +201,8 @@ void ConnectionImpl::writeImplFromLoop(
     size_t length,
     write_callback_fn fn) {
   
-  std::cout <<"==============================CHANNEL BEGIN TO SEND=========================================="<<std::endl;
-  std::cout << "Check Data Length in IBV Connection " << length / 1024 / 1024 << " M" << std::endl;
+  //std::cout <<"==============================CHANNEL BEGIN TO SEND=========================================="<<std::endl;
+  //std::cout << "Check Data Length in IBV Connection " << length / 1024 / 1024 << " M" << std::endl;
   writeOperations_.emplace_back(ptr, length, std::move(fn));
 
   // If the outbox has some free space, we may be able to process this operation
@@ -380,9 +380,9 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
   }
 
   OutboxProducer outboxProducer(outboxRb_);
-  //std::cout <<"=========================START NEW WRITE  ========================"<<std::endl;
+  ////std::cout <<"=========================START NEW WRITE  ========================"<<std::endl;
 
-  //std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
+  ////std::cout <<"================================================Start to process new write  ==================================================="<<std::endl;
   while (!writeOperations_.empty()) {
 
     auto start2 = std::chrono::system_clock::now();
@@ -430,14 +430,14 @@ void ConnectionImpl::processWriteOperationsFromLoop() {
       TP_THROW_SYSTEM_IF(ret < 0, -ret);
     }
     auto end2 = std::chrono::system_clock::now();
-    std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Actual Consumed " << (end2 - start2).count() / 1000<< std::endl;
-    std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Cummed Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
+    //std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Actual Consumed " << (end2 - start2).count() / 1000<< std::endl;
+    //std::cout <<  data_sent<< " Partial Sending Data For "<< len <<" bytes, Cummed Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
 
 
 
     if (writeOperation.completed()) {
       writeOperations_.pop_front();
-      std::cout <<  data_sent<< " Total Sending Data For Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
+      //std::cout <<  data_sent<< " Total Sending Data For Consumed " << (std::chrono::system_clock::now() - start).count() / 1000<< std::endl;
       data_sent += 1;
       start = std::chrono::system_clock::now();
     } else {
@@ -468,8 +468,8 @@ void ConnectionImpl::onRemoteProducedData(uint32_t length) {
 
 void ConnectionImpl::onRemoteConsumedData(uint32_t length) {
   TP_DCHECK(context_->inLoop());
-  std::cout << "Connection " << id_ << " was signalled that " << length
-             << " bytes were read from its outbox on QP " << qp_->qp_num << std::endl;
+  //std::cout << "Connection " << id_ << " was signalled that " << length
+  //           << " bytes were read from its outbox on QP " << qp_->qp_num << std::endl;
   ssize_t ret;
   OutboxIbvAcker outboxConsumer(outboxRb_);
 
